@@ -1,0 +1,97 @@
+{
+  "entities": {
+    "StudentAdministration": {
+      "title": "StudentAdministration",
+      "description": "Data administrasi mahasiswa",
+      "type": "object",
+      "properties": {
+        "tanggalDaftar": { "type": "string" },
+        "jalurInput": { "type": "string" },
+        "koordinator": { "type": "string" },
+        "program": { "type": "string" },
+        "perguruanTinggi": { "type": "string" },
+        "programStudi": { "type": "string" },
+        "kloterInput": { "type": "string" },
+        "periodePendaftaran": { "type": "string" },
+        "periodeKuliah": { "type": "string" },
+        "namaLengkap": { "type": "string" },
+        "tempatLahir": { "type": "string" },
+        "tanggalLahir": { "type": "string" },
+        "jenisKelamin": { "type": "string" },
+        "agama": { "type": "string" },
+        "nik": { "type": "string" },
+        "namaIbu": { "type": "string" },
+        "kelurahan": { "type": "string" },
+        "kecamatan": { "type": "string" },
+        "kabupatenKota": { "type": "string" },
+        "provinsi": { "type": "string" },
+        "email": { "type": "string" },
+        "noHp": { "type": "string" },
+        "lulusSmaS1": { "type": "string" },
+        "lulusKuliah": { "type": "string" },
+        "linkDoc": { "type": "string" },
+        "ketDokumen": { "type": "string" },
+        "statusBerkas": { "type": "string" },
+        "catatanMahasiswa": { "type": "string" },
+        "tanggalInput": { "type": "string" },
+        "statusData": { "type": "string" },
+        "linkPddikti": { "type": "string" },
+        "linkPisn": { "type": "string" },
+        "nimNpm": { "type": "string" },
+        "nomorIjazah": { "type": "string" },
+        "tanggalMasuk": { "type": "string" },
+        "tanggalLulus": { "type": "string" },
+        "pasPhoto": { "type": "string" },
+        "judulSkripsi": { "type": "string" },
+        "banPt": { "type": "string" },
+        "gelarAkademik": { "type": "string" },
+        "ketRevisi": { "type": "string" },
+        "totalSetor": { "type": "number" },
+        "statusTagihan": { "type": "string" },
+        "totalTagih": { "type": "number" },
+        "sudahBayar": { "type": "number" },
+        "sisaTagihan": { "type": "number" },
+        "ketBerkas": { "type": "string" },
+        "catatanKeuangan": { "type": "string" },
+        "periodePengiriman": { "type": "string" }
+      }
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Global application settings",
+      "type": "object",
+      "properties": {
+        "googleScriptUrl": { "type": "string" },
+        "googleScriptUrl_marketing": { "type": "string" },
+        "googleScriptUrl_finance": { "type": "string" },
+        "googleScriptUrl_admin": { "type": "string" },
+        "defaultSigner": { "type": "object" },
+        "programPaths": { "type": "array" },
+        "studyPrograms": { "type": "array" },
+        "adAccounts": { "type": "array" },
+        "admins": { "type": "array" },
+        "coordinators": { "type": "array" },
+        "campusesReguler": { "type": "array" },
+        "campusesRPL": { "type": "array" },
+        "campusesAkselerasi": { "type": "array" },
+        "adminOptions": { "type": "object" },
+        "incomeCategories": { "type": "array" },
+        "expenseCategories": { "type": "array" },
+        "theme": { "type": "string" },
+        "hrJabatan": { "type": "array" },
+        "hrDepartemen": { "type": "array" },
+        "hrStatusKaryawan": { "type": "array" }
+      }
+    }
+  },
+  "firestore": {
+    "studentAdministrations/{studentId}": {
+      "schema": { "$ref": "#/entities/StudentAdministration" },
+      "description": "Collection of student administration records"
+    },
+    "settings/{settingId}": {
+      "schema": { "$ref": "#/entities/AppSettings" },
+      "description": "Global application settings"
+    }
+  }
+}

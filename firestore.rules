@@ -1,0 +1,52 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: studentAdministrations
+    // Document ID: {studentId}
+    // Fields:
+    //   - namaLengkap: string
+    //   - program: string
+    //   - perguruanTinggi: string
+    //   - programStudi: string
+    //   - statusData: string
+    //   - email: string
+    //   - noHp: string
+    //   - (and many other string/number fields as per StudentAdministration interface)
+    //
+    // Collection: settings
+    // Document ID: {settingId}
+    // Fields:
+    //   - googleScriptUrl: string
+    //   - programPaths: list
+    //   - studyPrograms: list
+    //   - (and other settings fields)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    
+    match /studentAdministrations/{studentId} {
+      // For this internal dashboard, we allow authenticated users to read and write.
+      // In a production app, this should be restricted to specific admin roles.
+      allow read, write: if isAuthenticated();
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
