@@ -106,15 +106,65 @@ export default function MarketingDashboard() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Dashboard Marketing & Ads</h1>
-          <p className="text-slate-600 dark:text-slate-400 dark:text-blue-200">Monitoring performa Facebook Ads, Leads, dan Closing Tim.</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Dashboard Marketing & Ads</h1>
+          <p className="text-slate-600 dark:text-slate-400 dark:text-blue-200 mt-1">Monitoring performa Facebook Ads, Leads, dan Closing Tim.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => setActiveTab('dashboard')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:bg-slate-800/50'}`}>Dashboard</button>
-          <button onClick={() => setActiveTab('laporanAds')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'laporanAds' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:bg-slate-800/50'}`}>Laporan Ads</button>
-          <button onClick={() => setActiveTab('laporanCS')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'laporanCS' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:bg-slate-800/50'}`}>Laporan CS</button>
-          <button onClick={() => setActiveTab('prospek')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'prospek' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:bg-slate-800/50'}`}>Prospek CRM</button>
-          <button onClick={() => setActiveTab('pengaturan')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'pengaturan' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:bg-slate-800/50'}`}>Pengaturan</button>
+      </div>
+
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden mb-6">
+        <div className="border-b border-gray-200 dark:border-slate-700">
+          <nav className="flex -mb-px overflow-x-auto scrollbar-hide">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
+                activeTab === 'dashboard'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'
+              }`}
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => setActiveTab('laporanAds')}
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
+                activeTab === 'laporanAds'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'
+              }`}
+            >
+              Laporan Ads
+            </button>
+            <button
+              onClick={() => setActiveTab('laporanCS')}
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
+                activeTab === 'laporanCS'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'
+              }`}
+            >
+              Laporan CS
+            </button>
+            <button
+              onClick={() => setActiveTab('prospek')}
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
+                activeTab === 'prospek'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'
+              }`}
+            >
+              Prospek CRM
+            </button>
+            <button
+              onClick={() => setActiveTab('pengaturan')}
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
+                activeTab === 'pengaturan'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'
+              }`}
+            >
+              Pengaturan
+            </button>
+          </nav>
         </div>
       </div>
 
@@ -440,9 +490,12 @@ function LaporanAdsTab() {
 
       {isFormOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-2xl p-6">
-            <h2 className="text-xl font-bold mb-4">{editingId ? 'Edit' : 'Tambah'} Laporan Ads</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center shrink-0">
+              <h2 className="text-xl font-bold">{editingId ? 'Edit' : 'Tambah'} Laporan Ads</h2>
+              <button onClick={() => setShowForm(false)} className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300">✕</button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tanggal</label>
@@ -613,9 +666,12 @@ function LaporanCSTab() {
 
       {isFormOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-2xl p-6">
-            <h2 className="text-xl font-bold mb-4">{editingId ? 'Edit' : 'Tambah'} Laporan CS</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center shrink-0">
+              <h2 className="text-xl font-bold">{editingId ? 'Edit' : 'Tambah'} Laporan CS</h2>
+              <button onClick={() => setShowForm(false)} className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300">✕</button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tanggal</label>
@@ -792,9 +848,12 @@ function ProspekCRMTab() {
 
       {isFormOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-2xl p-6">
-            <h2 className="text-xl font-bold mb-4">{editingId ? 'Edit' : 'Tambah'} Prospek CRM</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center shrink-0">
+              <h2 className="text-xl font-bold">{editingId ? 'Edit' : 'Tambah'} Prospek CRM</h2>
+              <button onClick={() => setShowForm(false)} className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300">✕</button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tanggal Masuk</label>

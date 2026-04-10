@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useAppStore } from '../../hooks/useAppStore';
 import { StudentAdministration } from '../../types/app';
 import { format } from 'date-fns';
-import { enUS } from 'date-fns/locale';
+import { id } from 'date-fns/locale';
 import { 
   Users, 
   FileCheck, 
@@ -29,7 +29,7 @@ import { ConfirmModal } from '../../components/ConfirmModal';
 import * as XLSX from 'xlsx';
 
 const initialFormData: Omit<StudentAdministration, 'id'> = {
-  tanggalDaftar: format(new Date(), 'dd MMMM yyyy', { locale: enUS }),
+  tanggalDaftar: format(new Date(), 'dd MMMM yyyy', { locale: id }),
   jalurInput: '',
   koordinator: '',
   program: '',
@@ -57,7 +57,7 @@ const initialFormData: Omit<StudentAdministration, 'id'> = {
   ketDokumen: '',
   statusBerkas: '',
   catatanMahasiswa: '',
-  tanggalInput: format(new Date(), 'dd MMMM yyyy', { locale: enUS }),
+  tanggalInput: format(new Date(), 'dd MMMM yyyy', { locale: id }),
   statusData: '',
   linkPddikti: '',
   linkPisn: '',
@@ -148,6 +148,9 @@ export default function StudentAdministrationPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateFilterType, setDateFilterType] = useState<'all' | 'today' | 'week' | 'month' | 'year' | 'custom'>('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
 
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -209,6 +212,14 @@ export default function StudentAdministrationPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
 
+  const parseExcelNumber = (val: any) => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    // Remove all non-digit characters (like Rp, dots, commas, spaces)
+    const cleaned = String(val).replace(/[^0-9]/g, '');
+    return Number(cleaned) || 0;
+  };
+
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -226,7 +237,7 @@ export default function StudentAdministrationPage() {
         let importedCount = 0;
         for (const row of data as any[]) {
           const newStudent: Omit<StudentAdministration, 'id'> = {
-            tanggalDaftar: row['TANGGAL'] || row['TANGGAL DAFTAR'] || format(new Date(), 'dd MMMM yyyy', { locale: enUS }),
+            tanggalDaftar: row['TANGGAL'] || row['TANGGAL DAFTAR'] || format(new Date(), 'dd MMMM yyyy', { locale: id }),
             jalurInput: row['JALUR INPUT'] || '',
             koordinator: row['KOORDINATOR'] || '',
             program: row['PROGRAM'] || '',
@@ -254,7 +265,7 @@ export default function StudentAdministrationPage() {
             ketDokumen: row['KET DOKUMEN'] || row['KETERANGAN'] || '',
             statusBerkas: row['STATUS BERKAS'] || '',
             catatanMahasiswa: row['CATATAN MAHASISWA'] || row['CATATAN'] || '',
-            tanggalInput: format(new Date(), 'dd MMMM yyyy', { locale: enUS }),
+            tanggalInput: format(new Date(), 'dd MMMM yyyy', { locale: id }),
             statusData: row['STATUS DATA'] || '',
             linkPddikti: row['LINK PDDIKTI'] || '',
             linkPisn: row['LINK PISN'] || '',
@@ -267,11 +278,11 @@ export default function StudentAdministrationPage() {
             banPt: row['BAN PT'] || '',
             gelarAkademik: row['GELAR AKADEMIK'] || '',
             ketRevisi: row['KET REVISI'] || '',
-            totalSetor: Number(row['TOTAL SETOR']) || 0,
+            totalSetor: parseExcelNumber(row['TOTAL SETOR']),
             statusTagihan: row['STATUS TAGIHAN'] || '',
-            totalTagih: Number(row['TOTAL TAGIH']) || 0,
-            sudahBayar: Number(row['SUDAH BAYAR']) || 0,
-            sisaTagihan: Number(row['SISA TAGIHAN']) || 0,
+            totalTagih: parseExcelNumber(row['TOTAL TAGIH']),
+            sudahBayar: parseExcelNumber(row['SUDAH BAYAR']),
+            sisaTagihan: parseExcelNumber(row['SISA TAGIHAN']),
             ketBerkas: row['KET BERKAS'] || '',
             catatanKeuangan: row['CATATAN KEUANGAN'] || '',
             periodePengiriman: row['PERIODE PENGIRIMAN'] || ''
@@ -344,22 +355,56 @@ export default function StudentAdministrationPage() {
                           s.noHp.includes(searchTerm) ||
                           s.nik.includes(searchTerm);
       
-      return matchFilters && matchSearch;
+      let matchDate = true;
+      if (dateFilterType !== 'all') {
+        try {
+          const dateObj = new Date(s.tanggalDaftar);
+          if (!isNaN(dateObj.getTime())) {
+            const today = new Date();
+            if (dateFilterType === 'today') {
+              matchDate = dateObj.toDateString() === today.toDateString();
+            } else if (dateFilterType === 'week') {
+              const firstDayOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
+              firstDayOfWeek.setHours(0, 0, 0, 0);
+              matchDate = dateObj >= firstDayOfWeek;
+            } else if (dateFilterType === 'month') {
+              matchDate = dateObj.getMonth() === today.getMonth() && dateObj.getFullYear() === today.getFullYear();
+            } else if (dateFilterType === 'year') {
+              matchDate = dateObj.getFullYear() === today.getFullYear();
+            } else if (dateFilterType === 'custom') {
+              if (customStartDate) {
+                const start = new Date(customStartDate);
+                start.setHours(0, 0, 0, 0);
+                if (dateObj < start) matchDate = false;
+              }
+              if (customEndDate) {
+                const end = new Date(customEndDate);
+                end.setHours(23, 59, 59, 999);
+                if (dateObj > end) matchDate = false;
+              }
+            }
+          }
+        } catch (e) {
+          matchDate = false;
+        }
+      }
+
+      return matchFilters && matchSearch && matchDate;
     }).sort((a, b) => new Date(b.tanggalDaftar).getTime() - new Date(a.tanggalDaftar).getTime());
-  }, [studentAdministrations, activeFilters, visibleFilters, searchTerm]);
+  }, [studentAdministrations, activeFilters, visibleFilters, searchTerm, dateFilterType, customStartDate, customEndDate]);
 
   // Stats
   const stats = useMemo(() => {
     return {
-      total: studentAdministrations.length,
-      berkasLengkap: studentAdministrations.filter(s => s.ketDokumen === 'Berkas Lengkap').length,
-      aktifPddikti: studentAdministrations.filter(s => s.statusData === 'Aktif PDDikti').length,
-      tundaBatal: studentAdministrations.filter(s => ['Tunda', 'Batal', 'Keluar'].includes(s.statusBerkas) || ['Tunda', 'Keluar'].includes(s.statusData)).length,
-      karyawan: studentAdministrations.filter(s => s.program?.toLowerCase().includes('karyawan')).length,
-      rpl: studentAdministrations.filter(s => s.program?.toLowerCase().includes('rpl')).length,
-      akselerasi: studentAdministrations.filter(s => s.program?.toLowerCase().includes('akselerasi')).length,
+      total: filteredStudents.length,
+      prosesPddikti: filteredStudents.filter(s => s.statusData === 'Proses PDDikti').length,
+      selesai: filteredStudents.filter(s => s.statusData === 'Selesai').length,
+      revisi: filteredStudents.filter(s => s.statusData?.includes('Revisi') || s.statusTagihan?.includes('Revisi') || s.statusBerkas?.includes('Revisi')).length,
+      karyawan: filteredStudents.filter(s => s.program?.toLowerCase().includes('karyawan')).length,
+      rpl: filteredStudents.filter(s => s.program?.toLowerCase().includes('rpl')).length,
+      akselerasi: filteredStudents.filter(s => s.program?.toLowerCase().includes('akselerasi')).length,
     };
-  }, [studentAdministrations]);
+  }, [filteredStudents]);
 
   const getStatusBadge = (status: string) => {
     if (!status) return <span className="text-gray-400">-</span>;
@@ -377,7 +422,7 @@ export default function StudentAdministrationPage() {
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return dateString; // fallback if invalid
-      return format(date, 'dd MMMM yyyy', { locale: enUS });
+      return format(date, 'dd MMMM yyyy', { locale: id });
     } catch (e) {
       return dateString;
     }
@@ -477,22 +522,22 @@ export default function StudentAdministrationPage() {
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Administrasi Mahasiswa</h1>
           <p className="text-slate-600 dark:text-slate-400 dark:text-blue-200 mt-1">Kelola data pendaftaran, dokumen, dan status PDDikti mahasiswa</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
           {activeTab !== 'pengaturan' && (
             <>
               <button
                 onClick={() => syncFromCloud()}
                 disabled={isSyncing}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:bg-slate-800/50 transition-colors font-medium disabled:opacity-50 shadow-sm"
+                className="inline-flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:bg-slate-800/50 transition-colors text-sm font-medium disabled:opacity-50 shadow-sm"
               >
-                <RefreshCw size={18} className={isSyncing ? "animate-spin" : ""} />
+                <RefreshCw size={16} className={isSyncing ? "animate-spin" : ""} />
                 {isSyncing ? 'Sinkronisasi...' : 'Sinkronkan'}
               </button>
               <button
                 onClick={downloadTemplate}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 transition-colors font-medium border border-indigo-100"
+                className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 transition-colors text-sm font-medium border border-indigo-100"
               >
-                <FileDown size={18} />
+                <FileDown size={16} />
                 Template
               </button>
               <input
@@ -505,16 +550,16 @@ export default function StudentAdministrationPage() {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isImporting}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors font-medium disabled:opacity-50 shadow-sm shadow-amber-200"
+                className="inline-flex items-center gap-2 px-3 py-2 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors text-sm font-medium disabled:opacity-50 shadow-sm shadow-amber-200"
               >
-                <Upload size={18} />
+                <Upload size={16} />
                 {isImporting ? 'Mengimpor...' : 'Import'}
               </button>
               <button
                 onClick={exportToExcel}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors font-medium shadow-sm shadow-emerald-200"
+                className="inline-flex items-center gap-2 px-3 py-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors text-sm font-medium shadow-sm shadow-emerald-200"
               >
-                <Download size={18} />
+                <Download size={16} />
                 Export
               </button>
               <button
@@ -529,16 +574,16 @@ export default function StudentAdministrationPage() {
                     }
                   });
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-rose-50 text-rose-700 rounded-xl hover:bg-rose-100 transition-colors font-medium border border-rose-100 dark:border-rose-800/50"
+                className="inline-flex items-center gap-2 px-3 py-2 bg-rose-50 text-rose-700 rounded-xl hover:bg-rose-100 transition-colors text-sm font-medium border border-rose-100 dark:border-rose-800/50"
               >
-                <Trash2 size={18} />
+                <Trash2 size={16} />
                 Hapus Semua
               </button>
               <button
                 onClick={() => handleOpenForm()}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium shadow-sm shadow-indigo-200"
+                className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors text-sm font-medium shadow-sm shadow-indigo-200"
               >
-                <Plus size={18} />
+                <Plus size={16} />
                 Tambah
               </button>
             </>
@@ -548,10 +593,10 @@ export default function StudentAdministrationPage() {
 
       <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden mb-6">
         <div className="border-b border-gray-200 dark:border-slate-700">
-          <nav className="flex -mb-px">
+          <nav className="flex -mb-px overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveTab('data')}
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
                 activeTab === 'data'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 hover:border-gray-300'
@@ -561,7 +606,7 @@ export default function StudentAdministrationPage() {
             </button>
             <button
               onClick={() => setActiveTab('kanban')}
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
                 activeTab === 'kanban'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 hover:border-gray-300'
@@ -571,7 +616,7 @@ export default function StudentAdministrationPage() {
             </button>
             <button
               onClick={() => setActiveTab('pengaturan')}
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
                 activeTab === 'pengaturan'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 hover:border-gray-300'
@@ -601,35 +646,67 @@ export default function StudentAdministrationPage() {
             <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
               <FileCheck size={24} />
             </div>
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Berkas Lengkap</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Proses PDDikti</p>
           </div>
-          <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{stats.berkasLengkap}</h3>
+          <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{stats.prosesPddikti}</h3>
         </div>
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 relative overflow-hidden group">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl">
               <Database size={24} />
             </div>
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Aktif PDDikti</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Selesai</p>
           </div>
-          <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{stats.aktifPddikti}</h3>
+          <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{stats.selesai}</h3>
         </div>
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-rose-100 dark:border-rose-800/50 bg-rose-50/50 dark:bg-rose-900/20 relative overflow-hidden group">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-3 bg-rose-100 text-rose-600 rounded-xl">
               <FileWarning size={24} />
             </div>
-            <p className="text-sm font-medium text-rose-800">Tunda / Batal / Keluar</p>
+            <p className="text-sm font-medium text-rose-800">Revisi Sistem dan Cetak</p>
           </div>
-          <h3 className="text-3xl font-bold text-rose-900 tracking-tight">{stats.tundaBatal}</h3>
+          <h3 className="text-3xl font-bold text-rose-900 tracking-tight">{stats.revisi}</h3>
         </div>
       </div>
 
       {/* Filters */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Filter size={18} className="text-slate-500 dark:text-slate-400" />
+        <div className="flex flex-wrap items-center gap-4 flex-1">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <Filter size={18} className="text-slate-500 dark:text-slate-400 hidden sm:block" />
+            
+            <select
+              value={dateFilterType}
+              onChange={(e) => setDateFilterType(e.target.value as any)}
+              className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all flex-1 sm:flex-none"
+            >
+              <option value="all">Semua Waktu</option>
+              <option value="today">Hari Ini</option>
+              <option value="week">Minggu Ini</option>
+              <option value="month">Bulan Ini</option>
+              <option value="year">Tahun Ini</option>
+              <option value="custom">Rentang Tanggal</option>
+            </select>
+
+            {dateFilterType === 'custom' && (
+              <div className="flex items-center gap-2 flex-1 sm:flex-none">
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800/50 w-full sm:w-auto"
+                />
+                <span className="text-slate-500 dark:text-slate-400">-</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800/50 w-full sm:w-auto"
+                />
+              </div>
+            )}
+
             {visibleFilters.map(filterId => {
               const filterDef = AVAILABLE_FILTERS.find(f => f.id === filterId);
               if (!filterDef) return null;
@@ -638,30 +715,30 @@ export default function StudentAdministrationPage() {
                   key={filterId}
                   value={activeFilters[filterId] || 'ALL'}
                   onChange={(e) => setActiveFilters(prev => ({ ...prev, [filterId]: e.target.value }))}
-                  className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                  className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all flex-1 sm:flex-none"
                 >
                   <option value="ALL">Semua {filterDef.label}</option>
-                  {filterDef.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  {filterDef.options.map((opt, i) => <option key={`${opt}-${i}`} value={opt}>{opt}</option>)}
                 </select>
               );
             })}
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="p-2.5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 rounded-xl transition-colors"
+              className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 rounded-xl transition-colors flex-shrink-0"
               title="Pengaturan Filter & Export"
             >
               <Settings size={18} />
             </button>
           </div>
         </div>
-        <div className="relative w-full sm:w-72">
+        <div className="relative w-full sm:w-72 flex-shrink-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" size={18} />
           <input
             type="text"
             placeholder="Cari nama, NIK, no HP..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
           />
         </div>
       </div>
@@ -673,31 +750,14 @@ export default function StudentAdministrationPage() {
             <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
               <tr>
                 <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">NO</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">TANGGAL</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">NAMA LENGKAP</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">PERGURUAN TINGGI</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">PROGRAM STUDI</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">LULUS SMA/S1</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">LULUS KULIAH</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">TEMPAT LAHIR</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">TANGGAL LAHIR</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">JENIS KELAMIN</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">AGAMA</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">NIK</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">NAMA IBU</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">KELURAHAN</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">KECAMATAN</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">KABUPATEN/KOTA</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">PROVINSI</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">KETERANGAN</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">TOTAL SETOR</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">STATUS TAGIHAN</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">TOTAL TAGIH</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">SUDAH BAYAR</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">SISA TAGIHAN</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">KET. BERKAS</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">CATATAN KEUANGAN</th>
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">PERIODE PENGIRIMAN</th>
+                {exportColumns.map(colId => {
+                  const colDef = AVAILABLE_EXPORT_COLUMNS.find(c => c.id === colId);
+                  return (
+                    <th key={colId} className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                      {colDef?.label}
+                    </th>
+                  );
+                })}
                 <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 text-right whitespace-nowrap sticky right-0 bg-slate-50 dark:bg-slate-800/50">AKSI</th>
               </tr>
             </thead>
@@ -705,33 +765,28 @@ export default function StudentAdministrationPage() {
               {filteredStudents.map((student, index) => (
                 <tr key={student.id} className="hover:bg-slate-50 dark:bg-slate-800/50 transition-colors group">
                   <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{index + 1}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{formatTanggal(student.tanggalDaftar)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-medium text-slate-900 dark:text-white">{student.namaLengkap}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.perguruanTinggi}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.programStudi}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.lulusSmaS1}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.lulusKuliah}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.tempatLahir}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{formatTanggal(student.tanggalLahir)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.jenisKelamin}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.agama}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.nik}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.namaIbu}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.kelurahan}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.kecamatan}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.kabupatenKota}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.provinsi}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.catatanMahasiswa || student.ketDokumen || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(student.totalSetor || 0)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.statusTagihan || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(student.totalTagih || 0)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(student.sudahBayar || 0)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(student.sisaTagihan || 0)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.ketBerkas || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.catatanKeuangan || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{student.periodePengiriman || '-'}</td>
+                  {exportColumns.map(colId => {
+                    let value = student[colId as keyof StudentAdministration];
+                    if (['tanggalDaftar', 'tanggalLahir', 'tanggalInput', 'tanggalMasuk', 'tanggalLulus'].includes(colId)) {
+                      value = formatTanggal(value as string);
+                    } else if (['totalSetor', 'totalTagih', 'sudahBayar', 'sisaTagihan'].includes(colId)) {
+                      value = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(value) || 0);
+                    } else if (['linkDoc', 'linkPddikti', 'linkPisn', 'pasPhoto'].includes(colId) && value) {
+                      value = <a href={value as string} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Link</a>;
+                    } else if (!value) {
+                      value = '-';
+                    }
+                    
+                    return (
+                      <td key={colId} className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">
+                        {colId === 'namaLengkap' ? (
+                          <div className="font-medium text-slate-900 dark:text-white">{value}</div>
+                        ) : (
+                          value
+                        )}
+                      </td>
+                    );
+                  })}
                   <td className="px-6 py-4 text-right whitespace-nowrap sticky right-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:bg-slate-800/50 transition-colors">
                     <div className="flex items-center justify-end gap-2">
                       <button
@@ -761,7 +816,7 @@ export default function StudentAdministrationPage() {
               ))}
               {filteredStudents.length === 0 && (
                 <tr>
-                  <td colSpan={19} className="px-6 py-12 text-center text-slate-700 dark:text-slate-300">
+                  <td colSpan={exportColumns.length + 2} className="px-6 py-12 text-center text-slate-700 dark:text-slate-300">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Database size={32} className="text-slate-500 dark:text-slate-400 mb-2" />
                       <p>Tidak ada data mahasiswa yang sesuai dengan filter.</p>
@@ -775,7 +830,7 @@ export default function StudentAdministrationPage() {
       </div>
         </>
       ) : activeTab === 'kanban' ? (
-        <KanbanDashboard students={studentAdministrations} />
+        <KanbanDashboard students={filteredStudents} />
       ) : activeTab === 'pengaturan' ? (
         <PengaturanStudentAdminTab />
       ) : null}
@@ -809,35 +864,35 @@ export default function StudentAdministrationPage() {
                       <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Jalur Input</label>
                       <select name="jalurInput" value={formData.jalurInput} onChange={handleChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
                         <option value="">Pilih Jalur</option>
-                        {settings.adminOptions?.JALUR_INPUT?.map(o => <option key={o} value={o}>{o}</option>)}
+                        {settings.adminOptions?.JALUR_INPUT?.map((o, i) => <option key={`${o}-${i}`} value={o}>{o}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Koordinator</label>
                       <input type="text" name="koordinator" value={formData.koordinator} onChange={handleChange} list="coordinators" className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" />
                       <datalist id="coordinators">
-                        {settings.coordinators.map(c => <option key={c} value={c} />)}
+                        {settings.coordinators.map((c, i) => <option key={`${c}-${i}`} value={c} />)}
                       </datalist>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Program</label>
                       <select name="program" value={formData.program} onChange={handleChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
                         <option value="">Pilih Program</option>
-                        {settings.adminOptions?.PROGRAM?.map(o => <option key={o} value={o}>{o}</option>)}
+                        {settings.adminOptions?.PROGRAM?.map((o, i) => <option key={`${o}-${i}`} value={o}>{o}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Perguruan Tinggi</label>
                       <select name="perguruanTinggi" value={formData.perguruanTinggi} onChange={handleChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
                         <option value="">Pilih PT</option>
-                        {settings.adminOptions?.PERGURUAN_TINGGI?.map(o => <option key={o} value={o}>{o}</option>)}
+                        {settings.adminOptions?.PERGURUAN_TINGGI?.map((o, i) => <option key={`${o}-${i}`} value={o}>{o}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Program Studi</label>
                       <select name="programStudi" value={formData.programStudi} onChange={handleChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
                         <option value="">Pilih Prodi</option>
-                        {settings.studyPrograms?.map(o => <option key={o} value={o}>{o}</option>)}
+                        {settings.studyPrograms?.map((o, i) => <option key={`${o}-${i}`} value={o}>{o}</option>)}
                       </select>
                     </div>
                     <div>
@@ -878,14 +933,14 @@ export default function StudentAdministrationPage() {
                       <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Jenis Kelamin</label>
                       <select name="jenisKelamin" value={formData.jenisKelamin} onChange={handleChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
                         <option value="">Pilih</option>
-                        {settings.adminOptions?.JENIS_KELAMIN?.map(o => <option key={o} value={o}>{o}</option>)}
+                        {settings.adminOptions?.JENIS_KELAMIN?.map((o, i) => <option key={`${o}-${i}`} value={o}>{o}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Agama</label>
                       <select name="agama" value={formData.agama} onChange={handleChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
                         <option value="">Pilih</option>
-                        {settings.adminOptions?.AGAMA?.map(o => <option key={o} value={o}>{o}</option>)}
+                        {settings.adminOptions?.AGAMA?.map((o, i) => <option key={`${o}-${i}`} value={o}>{o}</option>)}
                       </select>
                     </div>
                     <div className="md:col-span-2">
@@ -950,14 +1005,14 @@ export default function StudentAdministrationPage() {
                       <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Keterangan Dokumen</label>
                       <select name="ketDokumen" value={formData.ketDokumen} onChange={handleChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
                         <option value="">Pilih Keterangan</option>
-                        {settings.adminOptions?.KET_DOKUMEN?.map(o => <option key={o} value={o}>{o}</option>)}
+                        {settings.adminOptions?.KET_DOKUMEN?.map((o, i) => <option key={`${o}-${i}`} value={o}>{o}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Status Berkas</label>
                       <select name="statusBerkas" value={formData.statusBerkas} onChange={handleChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
                         <option value="">Pilih Status</option>
-                        {settings.adminOptions?.STATUS_BERKAS?.map(o => <option key={o} value={o}>{o}</option>)}
+                        {settings.adminOptions?.STATUS_BERKAS?.map((o, i) => <option key={`${o}-${i}`} value={o}>{o}</option>)}
                       </select>
                     </div>
                     <div className="md:col-span-3">
@@ -982,7 +1037,7 @@ export default function StudentAdministrationPage() {
                       <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Status Data</label>
                       <select name="statusData" value={formData.statusData} onChange={handleChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
                         <option value="">Pilih Status Data</option>
-                        {settings.adminOptions?.STATUS_DATA?.map(o => <option key={o} value={o}>{o}</option>)}
+                        {settings.adminOptions?.STATUS_DATA?.map((o, i) => <option key={`${o}-${i}`} value={o}>{o}</option>)}
                       </select>
                     </div>
                     <div>
@@ -1025,7 +1080,7 @@ export default function StudentAdministrationPage() {
                       <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Gelar Akademik</label>
                       <select name="gelarAkademik" value={formData.gelarAkademik} onChange={handleChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
                         <option value="">Pilih Gelar</option>
-                        {settings.adminOptions?.GELAR_AKADEMIK?.map(o => <option key={o} value={o}>{o}</option>)}
+                        {settings.adminOptions?.GELAR_AKADEMIK?.map((o, i) => <option key={`${o}-${i}`} value={o}>{o}</option>)}
                       </select>
                     </div>
                     <div className="md:col-span-2">
@@ -1056,7 +1111,7 @@ export default function StudentAdministrationPage() {
                       <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">Status Tagihan</label>
                       <select name="statusTagihan" value={formData.statusTagihan} onChange={handleChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
                         <option value="">Pilih Status Tagihan</option>
-                        {settings.adminOptions?.STATUS_TAGIHAN?.map(o => <option key={o} value={o}>{o}</option>)}
+                        {settings.adminOptions?.STATUS_TAGIHAN?.map((o, i) => <option key={`${o}-${i}`} value={o}>{o}</option>)}
                       </select>
                     </div>
                     <div>
@@ -1075,7 +1130,7 @@ export default function StudentAdministrationPage() {
                       <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">Ket. Berkas</label>
                       <select name="ketBerkas" value={formData.ketBerkas} onChange={handleChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
                         <option value="">Pilih Ket. Berkas</option>
-                        {settings.adminOptions?.KET_BERKAS?.map(o => <option key={o} value={o}>{o}</option>)}
+                        {settings.adminOptions?.KET_BERKAS?.map((o, i) => <option key={`${o}-${i}`} value={o}>{o}</option>)}
                       </select>
                     </div>
                     <div className="md:col-span-2 lg:col-span-3">

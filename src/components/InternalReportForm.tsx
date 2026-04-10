@@ -271,8 +271,8 @@ export function InternalReportForm({ data, onChange }: Props) {
                       className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none text-sm"
                     >
                       <option value="">Pilih Sumber</option>
-                      {settings.incomeCategories?.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
+                      {settings.incomeCategories?.map((cat, i) => (
+                        <option key={`${cat}-${i}`} value={cat}>{cat}</option>
                       ))}
                     </select>
                   </div>
@@ -348,8 +348,8 @@ export function InternalReportForm({ data, onChange }: Props) {
                       className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none text-sm"
                     >
                       <option value="">Pilih Tujuan</option>
-                      {settings.expenseCategories?.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
+                      {settings.expenseCategories?.map((cat, i) => (
+                        <option key={`${cat}-${i}`} value={cat}>{cat}</option>
                       ))}
                     </select>
                   </div>
@@ -449,8 +449,8 @@ export function InternalReportForm({ data, onChange }: Props) {
                       className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none text-sm"
                     >
                       <option value="">Pilih Jalur Input</option>
-                      {settings.adminOptions?.JALUR_INPUT?.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
+                      {settings.adminOptions?.JALUR_INPUT?.map((opt, i) => (
+                        <option key={`${opt}-${i}`} value={opt}>{opt}</option>
                       ))}
                     </select>
                   </div>
@@ -506,8 +506,8 @@ export function InternalReportForm({ data, onChange }: Props) {
                       className="w-full px-2 py-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none text-sm"
                     >
                       <option value="">Pilih Program Studi</option>
-                      {settings.studyPrograms?.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
+                      {settings.studyPrograms?.map((opt, i) => (
+                        <option key={`${opt}-${i}`} value={opt}>{opt}</option>
                       ))}
                     </select>
                   </div>

@@ -176,9 +176,11 @@ export default function HRDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Dashboard SDM (HR)</h1>
-        <p className="text-slate-600 dark:text-slate-400 dark:text-blue-200">Manajemen karyawan, absensi, dan cuti.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Dashboard SDM (HR)</h1>
+          <p className="text-slate-600 dark:text-slate-400 dark:text-blue-200 mt-1">Manajemen karyawan, absensi, dan cuti.</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -219,10 +221,10 @@ export default function HRDashboard() {
 
       <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
         <div className="border-b border-gray-200 dark:border-slate-700">
-          <nav className="flex -mb-px">
+          <nav className="flex -mb-px overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveTab('karyawan')}
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
                 activeTab === 'karyawan'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 hover:border-gray-300'
@@ -232,7 +234,7 @@ export default function HRDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('absensi')}
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
                 activeTab === 'absensi'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 hover:border-gray-300'
@@ -242,7 +244,7 @@ export default function HRDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('cuti')}
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
                 activeTab === 'cuti'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 hover:border-gray-300'
@@ -252,7 +254,7 @@ export default function HRDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('pengaturan')}
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
                 activeTab === 'pengaturan'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 hover:border-gray-300'
@@ -264,8 +266,8 @@ export default function HRDashboard() {
         </div>
 
         <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <div className="relative w-64">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
@@ -282,7 +284,7 @@ export default function HRDashboard() {
                   else if (activeTab === 'absensi') setShowAttendanceModal(true);
                   else setShowLeaveModal(true);
                 }}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto justify-center"
               >
                 <Plus size={20} />
                 Tambah {activeTab === 'karyawan' ? 'Karyawan' : activeTab === 'absensi' ? 'Absensi' : 'Cuti'}
@@ -509,8 +511,8 @@ export default function HRDashboard() {
       {/* Employee Modal */}
       {showEmployeeModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white dark:bg-slate-900">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b shrink-0">
               <h2 className="text-xl font-bold">
                 {editingEmployee ? 'Edit Karyawan' : 'Tambah Karyawan'}
               </h2>
@@ -518,7 +520,7 @@ export default function HRDashboard() {
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={handleEmployeeSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+            <form onSubmit={handleEmployeeSubmit} className="p-6 space-y-4 overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">NIK</label>
@@ -714,8 +716,8 @@ export default function HRDashboard() {
       {/* Attendance Modal */}
       {showAttendanceModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg w-full max-w-md">
-            <div className="flex justify-between items-center p-6 border-b">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b shrink-0">
               <h2 className="text-xl font-bold">
                 {editingAttendance ? 'Edit Absensi' : 'Tambah Absensi'}
               </h2>
@@ -723,7 +725,7 @@ export default function HRDashboard() {
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={handleAttendanceSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleAttendanceSubmit} className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Karyawan</label>
                 <select
@@ -848,8 +850,8 @@ export default function HRDashboard() {
       {/* Leave Request Modal */}
       {showLeaveModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg w-full max-w-md">
-            <div className="flex justify-between items-center p-6 border-b">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b shrink-0">
               <h2 className="text-xl font-bold">
                 {editingLeave ? 'Edit Pengajuan Cuti' : 'Tambah Pengajuan Cuti'}
               </h2>
@@ -857,7 +859,7 @@ export default function HRDashboard() {
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={handleLeaveSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleLeaveSubmit} className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Karyawan</label>
                 <select

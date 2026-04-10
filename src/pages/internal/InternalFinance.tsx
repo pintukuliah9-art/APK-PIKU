@@ -31,9 +31,8 @@ export default function InternalFinance() {
     addKasLedgerEntry, 
     updateKasLedgerEntry,
     deleteKasLedgerEntry, 
-    addStudentPayment, 
-    updateStudentPayment,
-    studentPayments,
+    updateStudentAdministration,
+    studentAdministrations,
     interKasLoans,
     addInterKasLoan,
     updateInterKasLoan,
@@ -236,9 +235,9 @@ export default function InternalFinance() {
   const handleSaveStudentPayment = (e: React.FormEvent) => {
     e.preventDefault();
     const paymentData = {
-      date: paymentDate,
-      studentName: paymentStudentName,
-      kampus: paymentKampus,
+      tanggalDaftar: paymentDate,
+      namaLengkap: paymentStudentName,
+      perguruanTinggi: paymentKampus,
       totalSetor: paymentTotalSetor,
       totalTagih: paymentTotalTagih,
       statusTagihan: paymentStatusTagihan,
@@ -250,9 +249,7 @@ export default function InternalFinance() {
     };
 
     if (editingPaymentId) {
-      updateStudentPayment(editingPaymentId, paymentData);
-    } else {
-      addStudentPayment(paymentData);
+      updateStudentAdministration(editingPaymentId, paymentData);
     }
 
     setIsPaymentModalOpen(false);
@@ -316,9 +313,59 @@ export default function InternalFinance() {
     }).format(amount);
   };
 
+  const getAutoIncomeEntries = (kasId: string) => {
+    if (kasId === 'fs_akselerasi') {
+      return studentAdministrations
+        .filter(s => s.program?.toLowerCase().includes('akselerasi') && (Number(s.sudahBayar) || 0) > 0)
+        .map(s => ({
+          id: `auto-${s.id}`,
+          kasId,
+          date: s.tanggalDaftar || new Date().toISOString().split('T')[0],
+          inAmount: Number(s.sudahBayar) || 0,
+          outAmount: 0,
+          loanedOutAmount: 0,
+          borrowedAmount: 0,
+          notes: `Pembayaran SPP/Pendidikan: ${s.namaLengkap} (${s.program})`,
+          referenceId: 'auto',
+        }));
+    }
+    if (kasId === 'fs_rpl') {
+      return studentAdministrations
+        .filter(s => s.program?.toLowerCase().includes('rpl') && (Number(s.sudahBayar) || 0) > 0)
+        .map(s => ({
+          id: `auto-${s.id}`,
+          kasId,
+          date: s.tanggalDaftar || new Date().toISOString().split('T')[0],
+          inAmount: Number(s.sudahBayar) || 0,
+          outAmount: 0,
+          loanedOutAmount: 0,
+          borrowedAmount: 0,
+          notes: `Pembayaran SPP/Pendidikan: ${s.namaLengkap} (${s.program})`,
+          referenceId: 'auto',
+        }));
+    }
+    if (kasId === 'fs_karyawan') {
+      return studentAdministrations
+        .filter(s => (s.program?.toLowerCase().includes('reguler') || s.program?.toLowerCase().includes('karyawan')) && (Number(s.sudahBayar) || 0) > 0)
+        .map(s => ({
+          id: `auto-${s.id}`,
+          kasId,
+          date: s.tanggalDaftar || new Date().toISOString().split('T')[0],
+          inAmount: Number(s.sudahBayar) || 0,
+          outAmount: 0,
+          loanedOutAmount: 0,
+          borrowedAmount: 0,
+          notes: `Pembayaran SPP/Pendidikan: ${s.namaLengkap} (${s.program})`,
+          referenceId: 'auto',
+        }));
+    }
+    return [];
+  };
+
   const calculateKasBalance = (kasId: string) => {
     const entries = kasLedger.filter(e => e.kasId === kasId);
-    const ledgerBalance = entries.reduce((acc, curr) => acc + curr.inAmount - curr.outAmount - curr.loanedOutAmount + curr.borrowedAmount, 0);
+    const autoEntries = getAutoIncomeEntries(kasId);
+    const ledgerBalance = [...entries, ...autoEntries].reduce((acc, curr) => acc + curr.inAmount - curr.outAmount - curr.loanedOutAmount + curr.borrowedAmount, 0);
     
     const loansBorrowed = interKasLoans.filter(l => l.borrowerKasId === kasId && l.status === 'pending').reduce((acc, curr) => acc + curr.amount, 0);
     const loansLent = interKasLoans.filter(l => l.lenderKasId === kasId && l.status === 'pending').reduce((acc, curr) => acc + curr.amount, 0);
@@ -328,7 +375,7 @@ export default function InternalFinance() {
 
   if (selectedKas) {
     const kasInfo = allWallets.find(k => k.id === selectedKas);
-    const ledgerEntries = kasLedger.filter(e => e.kasId === selectedKas);
+    const ledgerEntries = [...kasLedger.filter(e => e.kasId === selectedKas), ...getAutoIncomeEntries(selectedKas)];
     
     // Add pending loans to the ledger view
     const relatedLoans = interKasLoans.filter(l => (l.borrowerKasId === selectedKas || l.lenderKasId === selectedKas) && l.status === 'pending');
@@ -546,13 +593,13 @@ export default function InternalFinance() {
         {/* Modal Tambah Transaksi Kas */}
         {isLedgerModalOpen && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-md">
-              <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+              <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center shrink-0">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">{editingLedgerId ? 'Edit Transaksi Kas' : 'Tambah Transaksi Kas'}</h2>
                 <button onClick={() => setIsLedgerModalOpen(false)} className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300">✕</button>
               </div>
               
-              <form onSubmit={handleSaveLedgerEntry} className="p-6 space-y-4">
+              <form onSubmit={handleSaveLedgerEntry} className="p-6 space-y-4 overflow-y-auto">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tanggal Transaksi</label>
@@ -633,8 +680,8 @@ export default function InternalFinance() {
                       className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Pilih Kampus</option>
-                      {settings.adminOptions?.PERGURUAN_TINGGI?.map(pt => (
-                        <option key={pt} value={pt}>{pt}</option>
+                      {settings.adminOptions?.PERGURUAN_TINGGI?.map((pt, i) => (
+                        <option key={`${pt}-${i}`} value={pt}>{pt}</option>
                       ))}
                     </select>
                   </div>
@@ -664,7 +711,7 @@ export default function InternalFinance() {
     );
   }
 
-  const totalDanaMasuk = studentPayments.reduce((acc, curr) => acc + curr.sudahBayar, 0);
+  const totalDanaMasuk = studentAdministrations.reduce((acc, curr) => acc + (Number(curr.sudahBayar) || 0), 0);
   const totalDialokasikan = dailyAllocations.reduce((acc, curr) => {
     return acc + Object.values(curr.allocations).reduce((sum: number, val) => sum + ((val as number) || 0), 0);
   }, 0);
@@ -674,9 +721,7 @@ export default function InternalFinance() {
     if (isInternalTransfer) return acc;
     return acc + curr.outAmount;
   }, 0);
-  const sisaSaldo = kasLedger.reduce((acc, curr) => {
-    return acc + curr.inAmount - curr.outAmount + curr.borrowedAmount - curr.loanedOutAmount;
-  }, 0);
+  const sisaSaldo = allWallets.reduce((acc, wallet) => acc + calculateKasBalance(wallet.id), 0);
 
   const allocationData = [
     { name: 'Saving Direksi', value: dailyAllocations.reduce((acc, curr) => acc + curr.allocations.savingDireksi, 0), color: '#16a34a' },
@@ -694,33 +739,25 @@ export default function InternalFinance() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Keuangan Internal</h1>
-          <p className="text-slate-600 dark:text-slate-400 dark:text-blue-200">Kelola alokasi harian dan pantau buku besar masing-masing kas.</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Keuangan Internal</h1>
+          <p className="text-slate-600 dark:text-slate-400 dark:text-blue-200 mt-1">Kelola alokasi harian dan pantau buku besar masing-masing kas.</p>
         </div>
-        <div className="flex gap-2">
-          {activeTab === 'kas' ? (
+        <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
+          {activeTab === 'allocations' && (
             <button
               onClick={handleOpenAllocationModal}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm shadow-blue-200"
             >
-              <Plus size={20} />
+              <Plus size={18} />
               Alokasi Dana Harian
-            </button>
-          ) : (
-            <button
-              onClick={handleOpenPaymentModal}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus size={20} />
-              Tambah Pembayaran
             </button>
           )}
         </div>
       </div>
 
-      <div className="flex gap-4 border-b border-gray-200 dark:border-slate-700 overflow-x-auto">
+      <div className="flex gap-4 border-b border-gray-200 dark:border-slate-700 overflow-x-auto scrollbar-hide">
         <button
           onClick={() => setActiveTab('sumberDana')}
           className={`pb-3 px-1 font-medium text-sm transition-colors relative whitespace-nowrap ${
@@ -756,7 +793,7 @@ export default function InternalFinance() {
         </button>
         <button
           onClick={() => setActiveTab('allocations')}
-          className={`pb-3 px-1 font-medium text-sm transition-colors relative ${
+          className={`pb-3 px-1 font-medium text-sm transition-colors relative whitespace-nowrap ${
             activeTab === 'allocations' ? 'text-blue-600' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300'
           }`}
         >
@@ -767,7 +804,7 @@ export default function InternalFinance() {
         </button>
         <button
           onClick={() => setActiveTab('pengaturan')}
-          className={`pb-3 px-1 font-medium text-sm transition-colors relative ${
+          className={`pb-3 px-1 font-medium text-sm transition-colors relative whitespace-nowrap ${
             activeTab === 'pengaturan' ? 'text-blue-600' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300'
           }`}
         >
@@ -1007,17 +1044,17 @@ export default function InternalFinance() {
       ) : activeTab === 'payments' ? (
         <StudentPaymentsTab onEdit={(payment) => {
           setEditingPaymentId(payment.id);
-          setPaymentDate(payment.date);
-          setPaymentStudentName(payment.studentName);
-          setPaymentKampus(payment.kampus || '');
-          setPaymentTotalSetor(payment.totalSetor);
-          setPaymentTotalTagih(payment.totalTagih);
-          setPaymentStatusTagihan(payment.statusTagihan);
-          setPaymentSudahBayar(payment.sudahBayar);
-          setPaymentSisaTagihan(payment.sisaTagihan);
-          setPaymentKetBerkas(payment.ketBerkas);
-          setPaymentCatatanKeuangan(payment.catatanKeuangan);
-          setPaymentPeriodePengiriman(payment.periodePengiriman);
+          setPaymentDate(payment.tanggalDaftar || '');
+          setPaymentStudentName(payment.namaLengkap || '');
+          setPaymentKampus(payment.perguruanTinggi || '');
+          setPaymentTotalSetor(Number(payment.totalSetor) || 0);
+          setPaymentTotalTagih(Number(payment.totalTagih) || 0);
+          setPaymentStatusTagihan(payment.statusTagihan || '');
+          setPaymentSudahBayar(Number(payment.sudahBayar) || 0);
+          setPaymentSisaTagihan(Number(payment.sisaTagihan) || 0);
+          setPaymentKetBerkas(payment.ketBerkas || '');
+          setPaymentCatatanKeuangan(payment.catatanKeuangan || '');
+          setPaymentPeriodePengiriman(payment.periodePengiriman || '');
           setIsPaymentModalOpen(true);
         }} />
       ) : activeTab === 'allocations' ? (
@@ -1100,8 +1137,8 @@ export default function InternalFinance() {
       {/* Modal Tambah Alokasi */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-900 z-10">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center shrink-0">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">{editingAllocationId ? 'Edit Alokasi Harian' : 'Tambah Alokasi Harian'}</h2>
               <button 
                 onClick={() => setIsModalOpen(false)}
@@ -1111,7 +1148,7 @@ export default function InternalFinance() {
               </button>
             </div>
             
-            <form onSubmit={handleSaveAllocation} className="p-6 space-y-6">
+            <form onSubmit={handleSaveAllocation} className="p-6 space-y-6 overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tanggal</label>
@@ -1132,12 +1169,12 @@ export default function InternalFinance() {
                     onChange={(e) => setTotalIncome(parseNumberInput(e.target.value))}
                     className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-blue-700"
                   />
-                  {studentPayments.filter(p => p.date === date).reduce((sum, p) => sum + p.sudahBayar, 0) > 0 && (
+                  {studentAdministrations.filter(p => p.tanggalDaftar === date).reduce((sum, p) => sum + (Number(p.sudahBayar) || 0), 0) > 0 && (
                     <div className="mt-2 flex items-center justify-between text-sm bg-blue-50 p-2 rounded border border-slate-200 dark:border-slate-800">
-                      <span className="text-blue-800">Dana mhs hari ini: <strong>{formatCurrency(studentPayments.filter(p => p.date === date).reduce((sum, p) => sum + p.sudahBayar, 0))}</strong></span>
+                      <span className="text-blue-800">Dana mhs hari ini: <strong>{formatCurrency(studentAdministrations.filter(p => p.tanggalDaftar === date).reduce((sum, p) => sum + (Number(p.sudahBayar) || 0), 0))}</strong></span>
                       <button 
                         type="button" 
-                        onClick={() => setTotalIncome(studentPayments.filter(p => p.date === date).reduce((sum, p) => sum + p.sudahBayar, 0))}
+                        onClick={() => setTotalIncome(studentAdministrations.filter(p => p.tanggalDaftar === date).reduce((sum, p) => sum + (Number(p.sudahBayar) || 0), 0))}
                         className="text-blue-600 hover:text-blue-800 font-medium underline"
                       >
                         Gunakan
@@ -1254,13 +1291,13 @@ export default function InternalFinance() {
       {/* Modal Tambah Pembayaran Mahasiswa */}
       {isPaymentModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-900 z-10">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center shrink-0">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">{editingPaymentId ? 'Edit Pembayaran Mahasiswa' : 'Tambah Pembayaran Mahasiswa'}</h2>
               <button onClick={() => setIsPaymentModalOpen(false)} className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300">✕</button>
             </div>
             
-            <form onSubmit={handleSaveStudentPayment} className="p-6 space-y-4">
+            <form onSubmit={handleSaveStudentPayment} className="p-6 space-y-4 overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tanggal</label>
@@ -1294,8 +1331,8 @@ export default function InternalFinance() {
                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Pilih Kampus</option>
-                    {settings.adminOptions?.PERGURUAN_TINGGI?.map(pt => (
-                      <option key={pt} value={pt}>{pt}</option>
+                    {settings.adminOptions?.PERGURUAN_TINGGI?.map((pt, i) => (
+                      <option key={`${pt}-${i}`} value={pt}>{pt}</option>
                     ))}
                   </select>
                 </div>
@@ -1407,11 +1444,12 @@ export default function InternalFinance() {
       {/* Loan Modal */}
       {isLoanModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center shrink-0">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">{editingLoanId ? 'Edit Pinjaman Antar Kas' : 'Catat Pinjaman Antar Kas'}</h2>
+              <button onClick={() => setIsLoanModalOpen(false)} className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300">✕</button>
             </div>
-            <form onSubmit={handleSaveLoan} className="p-6 space-y-4">
+            <form onSubmit={handleSaveLoan} className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tanggal Pinjam</label>
                 <input

@@ -3,15 +3,17 @@ import { useAppStore } from '../hooks/useAppStore';
 import { formatCurrency } from '../lib/utils';
 import { Trash2, Search, TrendingUp, Edit2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { StudentPayment } from '../types/app';
+import { StudentAdministration } from '../types/app';
 import { ConfirmModal } from './ConfirmModal';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 interface Props {
-  onEdit: (payment: StudentPayment) => void;
+  onEdit: (payment: StudentAdministration) => void;
 }
 
 export function StudentPaymentsTab({ onEdit }: Props) {
-  const { studentPayments, deleteStudentPayment, dailyAllocations } = useAppStore();
+  const { studentAdministrations, deleteStudentAdministration, dailyAllocations } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
 
   // Confirm Modal State
@@ -27,23 +29,24 @@ export function StudentPaymentsTab({ onEdit }: Props) {
     onConfirm: () => {},
   });
 
-  const filteredPayments = studentPayments.filter(payment => 
-    payment.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.statusTagihan.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.catatanKeuangan.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.periodePengiriman.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (payment.kampus && payment.kampus.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredPayments = studentAdministrations.filter(payment => 
+    (payment.namaLengkap || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (payment.statusTagihan || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (payment.catatanKeuangan || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (payment.periodePengiriman || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (payment.perguruanTinggi && payment.perguruanTinggi.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const dailySummary = useMemo(() => {
     const summary: Record<string, { date: string; totalMasuk: number; totalDialokasikan: number; sisa: number }> = {};
     
     // Aggregate incoming payments
-    studentPayments.forEach(p => {
-      if (!summary[p.date]) {
-        summary[p.date] = { date: p.date, totalMasuk: 0, totalDialokasikan: 0, sisa: 0 };
+    studentAdministrations.forEach(p => {
+      const date = p.tanggalDaftar || '';
+      if (!summary[date]) {
+        summary[date] = { date: date, totalMasuk: 0, totalDialokasikan: 0, sisa: 0 };
       }
-      summary[p.date].totalMasuk += p.sudahBayar;
+      summary[date].totalMasuk += Number(p.sudahBayar) || 0;
     });
 
     // Aggregate allocations
@@ -60,7 +63,7 @@ export function StudentPaymentsTab({ onEdit }: Props) {
     });
 
     return Object.values(summary).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [studentPayments, dailyAllocations]);
+  }, [studentAdministrations, dailyAllocations]);
 
   return (
     <div className="space-y-6">
@@ -120,7 +123,9 @@ export function StudentPaymentsTab({ onEdit }: Props) {
               <tr className="bg-gray-50 border-b border-gray-200 text-sm">
                 <th className="p-4 font-medium text-gray-600">Tanggal</th>
                 <th className="p-4 font-medium text-gray-600">Nama Mahasiswa</th>
+                <th className="p-4 font-medium text-gray-600">Program</th>
                 <th className="p-4 font-medium text-gray-600">Kampus</th>
+                <th className="p-4 font-medium text-gray-600">Prodi</th>
                 <th className="p-4 font-medium text-gray-600 text-right">Total Setor</th>
                 <th className="p-4 font-medium text-gray-600 text-right">Total Tagih</th>
                 <th className="p-4 font-medium text-gray-600">Status Tagihan</th>
@@ -135,25 +140,27 @@ export function StudentPaymentsTab({ onEdit }: Props) {
             <tbody className="divide-y divide-gray-100 text-sm">
               {filteredPayments.map((payment) => (
                 <tr key={payment.id} className="hover:bg-gray-50">
-                  <td className="p-4 whitespace-nowrap">{payment.date}</td>
-                  <td className="p-4 font-medium text-gray-900">{payment.studentName}</td>
-                  <td className="p-4">{payment.kampus || '-'}</td>
-                  <td className="p-4 text-right font-medium text-green-600">{formatCurrency(payment.totalSetor)}</td>
-                  <td className="p-4 text-right">{formatCurrency(payment.totalTagih)}</td>
+                  <td className="p-4 whitespace-nowrap">{payment.tanggalDaftar ? format(new Date(payment.tanggalDaftar), 'dd MMMM yyyy', { locale: id }) : '-'}</td>
+                  <td className="p-4 font-medium text-gray-900">{payment.namaLengkap}</td>
+                  <td className="p-4">{payment.program || '-'}</td>
+                  <td className="p-4">{payment.perguruanTinggi || '-'}</td>
+                  <td className="p-4">{payment.programStudi || '-'}</td>
+                  <td className="p-4 text-right font-medium text-green-600">{formatCurrency(Number(payment.totalSetor) || 0)}</td>
+                  <td className="p-4 text-right">{formatCurrency(Number(payment.totalTagih) || 0)}</td>
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       payment.statusTagihan === 'Lunas' ? 'bg-green-100 text-green-700' :
                       payment.statusTagihan === 'Belum Lunas' ? 'bg-red-100 text-red-700' :
                       'bg-yellow-100 text-yellow-700'
                     }`}>
-                      {payment.statusTagihan}
+                      {payment.statusTagihan || '-'}
                     </span>
                   </td>
-                  <td className="p-4 text-right">{formatCurrency(payment.sudahBayar)}</td>
-                  <td className="p-4 text-right text-red-600">{formatCurrency(payment.sisaTagihan)}</td>
-                  <td className="p-4">{payment.ketBerkas}</td>
-                  <td className="p-4">{payment.catatanKeuangan}</td>
-                  <td className="p-4">{payment.periodePengiriman}</td>
+                  <td className="p-4 text-right">{formatCurrency(Number(payment.sudahBayar) || 0)}</td>
+                  <td className="p-4 text-right text-red-600">{formatCurrency(Number(payment.sisaTagihan) || 0)}</td>
+                  <td className="p-4">{payment.ketBerkas || '-'}</td>
+                  <td className="p-4">{payment.catatanKeuangan || '-'}</td>
+                  <td className="p-4">{payment.periodePengiriman || '-'}</td>
                   <td className="p-4 text-center">
                     <div className="flex justify-center gap-2">
                       <button
@@ -169,7 +176,7 @@ export function StudentPaymentsTab({ onEdit }: Props) {
                             isOpen: true,
                             title: 'Hapus Pembayaran',
                             message: 'Apakah Anda yakin ingin menghapus data pembayaran ini?',
-                            onConfirm: () => deleteStudentPayment(payment.id)
+                            onConfirm: () => deleteStudentAdministration(payment.id)
                           });
                         }}
                         className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"

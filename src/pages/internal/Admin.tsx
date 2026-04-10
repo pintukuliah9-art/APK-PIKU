@@ -107,9 +107,11 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Dashboard Administrasi</h1>
-        <p className="text-slate-600 dark:text-slate-400 dark:text-blue-200">Manajemen surat menyurat dan inventaris kantor.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Dashboard Administrasi</h1>
+          <p className="text-slate-600 dark:text-slate-400 dark:text-blue-200 mt-1">Manajemen surat menyurat dan inventaris kantor.</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -150,10 +152,10 @@ export default function AdminDashboard() {
 
       <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
         <div className="border-b border-gray-200 dark:border-slate-700">
-          <nav className="flex -mb-px">
+          <nav className="flex -mb-px overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveTab('surat')}
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
                 activeTab === 'surat'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 hover:border-gray-300'
@@ -163,7 +165,7 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('inventaris')}
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
                 activeTab === 'inventaris'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 hover:border-gray-300'
@@ -173,7 +175,7 @@ export default function AdminDashboard() {
             </button>
             <button
               onClick={() => setActiveTab('pengaturan')}
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
                 activeTab === 'pengaturan'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300 hover:border-gray-300'
@@ -185,8 +187,8 @@ export default function AdminDashboard() {
         </div>
 
         <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <div className="relative w-64">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
@@ -199,7 +201,7 @@ export default function AdminDashboard() {
             {activeTab !== 'pengaturan' && (
               <button
                 onClick={() => activeTab === 'surat' ? setShowSuratModal(true) : setShowInventarisModal(true)}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto justify-center"
               >
                 <Plus size={20} />
                 Tambah {activeTab === 'surat' ? 'Surat' : 'Inventaris'}
@@ -348,8 +350,8 @@ export default function AdminDashboard() {
       {/* Surat Modal */}
       {showSuratModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg w-full max-w-md">
-            <div className="flex justify-between items-center p-6 border-b">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b shrink-0">
               <h2 className="text-xl font-bold">
                 {editingSurat ? 'Edit Surat' : 'Tambah Surat'}
               </h2>
@@ -357,7 +359,7 @@ export default function AdminDashboard() {
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={handleSuratSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSuratSubmit} className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Jenis Surat</label>
                 <select
@@ -442,8 +444,8 @@ export default function AdminDashboard() {
       {/* Inventaris Modal */}
       {showInventarisModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg w-full max-w-md">
-            <div className="flex justify-between items-center p-6 border-b">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b shrink-0">
               <h2 className="text-xl font-bold">
                 {editingInventaris ? 'Edit Inventaris' : 'Tambah Inventaris'}
               </h2>
@@ -451,7 +453,7 @@ export default function AdminDashboard() {
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={handleInventarisSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleInventarisSubmit} className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Kode Barang</label>
                 <input
