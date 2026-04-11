@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
-import { useAppStore } from '../hooks/useAppStore';
-import { Settings as SettingsIcon, Moon, Sun, Database, Plus, Trash2 } from 'lucide-react';
+import { useAppStore } from '../contexts/AppStoreContext';
+import { useAuth } from '../contexts/AuthContext';
+import { Settings as SettingsIcon, Moon, Sun, Database, Plus, Trash2, CloudUpload, AlertTriangle, Users, User } from 'lucide-react';
+import UserManagement from '../components/UserManagement';
+import UserProfile from '../components/UserProfile';
 
 export default function Settings() {
-  const { settings, updateSettings } = useAppStore();
-  const [activeTab, setActiveTab] = useState<'tampilan' | 'database'>('tampilan');
+  const { settings, updateSettings, migrateDataToFirebase, isSyncing } = useAppStore();
+  const { userRole } = useAuth();
+  const [activeTab, setActiveTab] = useState<'tampilan' | 'database' | 'migrasi' | 'pengguna' | 'profil'>('tampilan');
   const [newOption, setNewOption] = useState('');
   const [activeConfig, setActiveConfig] = useState<string>('studyPrograms');
+  const [migrationStatus, setMigrationStatus] = useState<{success?: boolean, message?: string} | null>(null);
 
   const handleThemeChange = (theme: 'light' | 'dark') => {
     updateSettings({ ...settings, theme });
@@ -14,6 +19,14 @@ export default function Settings() {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
+    }
+  };
+
+  const handleMigrate = async () => {
+    if (window.confirm('Apakah Anda yakin ingin memigrasikan semua data lokal ke Firebase? Ini mungkin memakan waktu beberapa saat.')) {
+      setMigrationStatus(null);
+      const result = await migrateDataToFirebase();
+      setMigrationStatus(result);
     }
   };
 
@@ -126,6 +139,32 @@ export default function Settings() {
           >
             Tampilan
           </button>
+          {userRole === 'super_admin' && (
+            <button
+              onClick={() => setActiveTab('pengguna')}
+              className={`flex-1 py-4 px-6 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                activeTab === 'pengguna' 
+                  ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400' 
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
+              }`}
+            >
+              <Users size={16} />
+              Pengguna
+            </button>
+          )}
+          {userRole !== 'super_admin' && (
+            <button
+              onClick={() => setActiveTab('profil')}
+              className={`flex-1 py-4 px-6 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                activeTab === 'profil' 
+                  ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400' 
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
+              }`}
+            >
+              <User size={16} />
+              Profil
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('database')}
             className={`flex-1 py-4 px-6 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
@@ -137,6 +176,19 @@ export default function Settings() {
             <Database size={16} />
             Database Mahasiswa
           </button>
+          {userRole === 'super_admin' && (
+            <button
+              onClick={() => setActiveTab('migrasi')}
+              className={`flex-1 py-4 px-6 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                activeTab === 'migrasi' 
+                  ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400' 
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
+              }`}
+            >
+              <CloudUpload size={16} />
+              Migrasi Data
+            </button>
+          )}
         </div>
 
         <div className="p-6">
@@ -244,6 +296,54 @@ export default function Settings() {
                     ))
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'pengguna' && userRole === 'super_admin' && (
+            <UserManagement />
+          )}
+
+          {activeTab === 'profil' && userRole !== 'super_admin' && (
+            <UserProfile />
+          )}
+
+          {activeTab === 'migrasi' && userRole === 'super_admin' && (
+            <div className="space-y-6 max-w-2xl">
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex gap-4">
+                <AlertTriangle className="text-amber-600 dark:text-amber-500 shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-amber-800 dark:text-amber-400 mb-1">Peringatan Migrasi Data</h3>
+                  <p className="text-sm text-amber-700 dark:text-amber-300">
+                    Fitur ini akan mengunggah semua data yang tersimpan di browser Anda (termasuk yang disinkronkan dari Google Sheets) ke database Firebase. Lakukan ini hanya sekali saat pertama kali beralih ke Firebase untuk menghindari duplikasi data.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-6 border border-slate-200 dark:border-slate-700">
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">Mulai Migrasi</h3>
+                <p className="text-slate-600 dark:text-slate-400 mb-6">
+                  Pastikan Anda memiliki koneksi internet yang stabil sebelum memulai proses migrasi.
+                </p>
+
+                <button
+                  onClick={handleMigrate}
+                  disabled={isSyncing}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors w-full justify-center"
+                >
+                  <CloudUpload size={20} />
+                  {isSyncing ? 'Sedang Memigrasikan Data...' : 'Migrasikan Semua Data ke Firebase'}
+                </button>
+
+                {migrationStatus && (
+                  <div className={`mt-4 p-4 rounded-lg text-sm font-medium ${
+                    migrationStatus.success 
+                      ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800' 
+                      : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800'
+                  }`}>
+                    {migrationStatus.message}
+                  </div>
+                )}
               </div>
             </div>
           )}

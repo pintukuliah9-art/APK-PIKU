@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useAppStore } from '../hooks/useAppStore';
+import { useAppStore } from '../contexts/AppStoreContext';
 import { formatCurrency } from '../lib/utils';
 import { Trash2, Search, TrendingUp, Edit2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';

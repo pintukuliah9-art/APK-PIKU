@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAppStore } from '../../hooks/useAppStore';
+import { useAppStore } from '../../contexts/AppStoreContext';
 import { InternalReportForm } from '../../components/InternalReportForm';
 import { InternalReportPreview } from '../../components/InternalReportPreview';
 import { InternalReportData, initialInternalReportData } from '../../types';

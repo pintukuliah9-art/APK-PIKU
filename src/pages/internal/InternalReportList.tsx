@@ -1,4 +1,4 @@
-import { useAppStore } from '../../hooks/useAppStore';
+import { useAppStore } from '../../contexts/AppStoreContext';
 import { Link } from 'react-router-dom';
 import { Plus, FileText, Trash2, Edit } from 'lucide-react';
 import { formatCurrency } from '../../lib/utils';

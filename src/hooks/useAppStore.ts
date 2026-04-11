@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { SavedReport, SavedInternalReport, SavedMarketingReport, SavedAdminReport, AppSettings, defaultSettings, Transaction, DailyAllocation, KasLedgerEntry, Student, StudentPayment, InterKasLoan, StudentAdministration, Surat, Inventaris, Employee, Attendance, LeaveRequest } from '../types/app';
 import { initialReportData } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { fetchFromGoogleSheets, postToGoogleSheets } from '../services/googleSheets';
 import { db, auth } from '../firebase';
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
@@ -156,60 +155,62 @@ export function useAppStore() {
 
   // Firebase Listeners
   useEffect(() => {
-    let unsubscribeStudents: () => void;
-    let unsubscribeSettings: () => void;
+    const unsubscribes: (() => void)[] = [];
 
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       if (user) {
         try {
-          unsubscribeStudents = onSnapshot(collection(db, 'studentAdministrations'), (snapshot) => {
-            const studentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StudentAdministration));
-            setStudentAdministrations(studentsData);
-          }, (error) => {
-            handleFirestoreError(error, OperationType.GET, 'studentAdministrations');
-          });
+          const setupListener = (collectionName: string, setter: (data: any[]) => void) => {
+            const unsub = onSnapshot(collection(db, collectionName), (snapshot) => {
+              const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              setter(data);
+            }, (error) => {
+              handleFirestoreError(error, OperationType.GET, collectionName);
+            });
+            unsubscribes.push(unsub);
+          };
 
-          unsubscribeSettings = onSnapshot(collection(db, 'settings'), (snapshot) => {
+          setupListener('reports', setReports);
+          setupListener('internalReports', setInternalReports);
+          setupListener('transactions', setTransactions);
+          setupListener('dailyAllocations', setDailyAllocations);
+          setupListener('kasLedger', setKasLedger);
+          setupListener('students', setStudents);
+          setupListener('studentPayments', setStudentPayments);
+          setupListener('studentAdministrations', setStudentAdministrations);
+          setupListener('interKasLoans', setInterKasLoans);
+          setupListener('marketingReports', setMarketingReports);
+          setupListener('adminReports', setAdminReports);
+          setupListener('suratList', setSuratList);
+          setupListener('inventarisList', setInventarisList);
+          setupListener('employees', setEmployees);
+          setupListener('attendances', setAttendances);
+          setupListener('leaveRequests', setLeaveRequests);
+
+          const unsubSettings = onSnapshot(collection(db, 'settings'), (snapshot) => {
             if (!snapshot.empty) {
-              const settingsDoc = snapshot.docs[0];
+              const settingsDoc = snapshot.docs.find(doc => doc.id === 'global') || snapshot.docs[0];
               setSettings({ ...defaultSettings, ...settingsDoc.data() } as AppSettings);
             }
           }, (error) => {
             handleFirestoreError(error, OperationType.GET, 'settings');
           });
+          unsubscribes.push(unsubSettings);
+
         } catch (error) {
           console.error('Error setting up Firebase listeners:', error);
         }
       } else {
-        if (unsubscribeStudents) unsubscribeStudents();
-        if (unsubscribeSettings) unsubscribeSettings();
+        unsubscribes.forEach(unsub => unsub());
+        unsubscribes.length = 0;
       }
     });
 
     return () => {
       unsubscribeAuth();
-      if (unsubscribeStudents) unsubscribeStudents();
-      if (unsubscribeSettings) unsubscribeSettings();
+      unsubscribes.forEach(unsub => unsub());
     };
   }, []);
-
-  // Initial Sync with Cloud if URL exists
-  useEffect(() => {
-    if (isLoaded && (
-      settings.googleScriptUrl || 
-      settings.googleScriptUrl_finance ||
-      settings.googleScriptUrl_admin ||
-      settings.googleScriptUrl_marketing
-    )) {
-      syncFromCloud();
-    }
-  }, [
-    isLoaded, 
-    settings.googleScriptUrl, 
-    settings.googleScriptUrl_finance,
-    settings.googleScriptUrl_admin,
-    settings.googleScriptUrl_marketing
-  ]);
 
   // Save to storage whenever state changes
   useEffect(() => {
@@ -326,230 +327,28 @@ export function useAppStore() {
     }
   }, [leaveRequests, isLoaded]);
 
-  const syncFromCloud = async () => {
-    setIsSyncing(true);
+  const addDocument = async (collectionName: string, data: any) => {
     try {
-      if (settings.googleScriptUrl) {
-        const data = await fetchFromGoogleSheets(settings.googleScriptUrl);
-        if (data) {
-          if (data.reports !== undefined) setReports(data.reports);
-          if (data.transactions !== undefined) setTransactions(data.transactions);
-          if (data.settings) setSettings(prev => ({ ...prev, ...data.settings }));
-          
-          // Load other collections if they exist in the new backend format
-          if (data.dailyAllocations !== undefined) setDailyAllocations(data.dailyAllocations || []);
-          if (data.kasLedger !== undefined) setKasLedger(data.kasLedger || []);
-          if (data.students !== undefined) setStudents(data.students || []);
-          if (data.studentPayments !== undefined) setStudentPayments(data.studentPayments || []);
-          if (data.interKasLoans !== undefined) setInterKasLoans(data.interKasLoans || []);
-          if (data.studentAdministrations !== undefined) setStudentAdministrations(data.studentAdministrations || []);
-          if (data.marketingReports !== undefined) setMarketingReports(data.marketingReports || []);
-          if (data.adminReports !== undefined) setAdminReports(data.adminReports || []);
-          if (data.internalReports !== undefined) setInternalReports(data.internalReports || []);
-          if (data.suratList !== undefined) setSuratList(data.suratList || []);
-          if (data.inventarisList !== undefined) setInventarisList(data.inventarisList || []);
-          if (data.employees !== undefined) setEmployees(data.employees || []);
-          if (data.attendances !== undefined) setAttendances(data.attendances || []);
-          if (data.leaveRequests !== undefined) setLeaveRequests(data.leaveRequests || []);
-        }
-      }
-
-      if (settings.googleScriptUrl_admin) {
-        const adminData = await fetchFromGoogleSheets(`${settings.googleScriptUrl_admin}?action=getAllData`);
-        if (adminData && adminData.status === 'success' && adminData.data) {
-          const { 
-            adminReports: newAdminReports,
-            students: newStudents, 
-            studentAdministrations: newStudentAdministrations,
-            suratList: newSuratList,
-            inventarisList: newInventarisList,
-            employees: newEmployees,
-            attendances: newAttendances,
-            leaveRequests: newLeaveRequests,
-            settings: newSettings
-          } = adminData.data;
-          if (newAdminReports !== undefined) setAdminReports(newAdminReports || []);
-          if (newStudents !== undefined) setStudents(newStudents || []);
-          if (newStudentAdministrations !== undefined) setStudentAdministrations(newStudentAdministrations || []);
-          if (newSuratList !== undefined) setSuratList(newSuratList || []);
-          if (newInventarisList !== undefined) setInventarisList(newInventarisList || []);
-          if (newEmployees !== undefined) setEmployees(newEmployees || []);
-          if (newAttendances !== undefined) setAttendances(newAttendances || []);
-          if (newLeaveRequests !== undefined) setLeaveRequests(newLeaveRequests || []);
-          if (newSettings !== undefined) setSettings(prev => ({ ...prev, ...newSettings }));
-        } else if (adminData && !adminData.status) {
-          // Legacy format fallback
-          if (adminData.adminReports !== undefined) setAdminReports(adminData.adminReports || []);
-          if (adminData.students !== undefined) setStudents(adminData.students || []);
-          if (adminData.studentAdministrations !== undefined) setStudentAdministrations(adminData.studentAdministrations || []);
-          if (adminData.suratList !== undefined) setSuratList(adminData.suratList || []);
-          if (adminData.inventarisList !== undefined) setInventarisList(adminData.inventarisList || []);
-          if (adminData.employees !== undefined) setEmployees(adminData.employees || []);
-          if (adminData.attendances !== undefined) setAttendances(adminData.attendances || []);
-          if (adminData.leaveRequests !== undefined) setLeaveRequests(adminData.leaveRequests || []);
-        }
-      }
-
-      if (settings.googleScriptUrl_marketing) {
-        const marketingData = await fetchFromGoogleSheets(`${settings.googleScriptUrl_marketing}?action=getAllData`);
-        if (marketingData && marketingData.status === 'success' && marketingData.data) {
-          const { marketingReports: newMarketingReports } = marketingData.data;
-          if (newMarketingReports !== undefined) setMarketingReports(newMarketingReports || []);
-        } else if (marketingData && !marketingData.status) {
-          // Legacy format fallback
-          if (marketingData.marketingReports !== undefined) setMarketingReports(marketingData.marketingReports || []);
-        }
-      }
-
-      if (settings.googleScriptUrl_finance) {
-        const financeData = await fetchFromGoogleSheets(`${settings.googleScriptUrl_finance}?action=getAllData`);
-        if (financeData && financeData.status === 'success' && financeData.data) {
-          const { 
-            alokasiDana, pembayaranMahasiswa, bukuBesarKas, hutangPiutang,
-            dailyAllocations: newDailyAllocations,
-            studentPayments: newStudentPayments,
-            kasLedger: newKasLedger,
-            interKasLoans: newInterKasLoans,
-            transactions: newTransactions
-          } = financeData.data;
-          
-          if (newTransactions !== undefined) {
-            setTransactions(newTransactions || []);
-          }
-
-          if (newDailyAllocations !== undefined) {
-            setDailyAllocations(newDailyAllocations || []);
-          } else if (alokasiDana !== undefined) {
-            const mappedDailyAllocations = alokasiDana.map((row: any) => ({
-              id: row['ID'] || uuidv4(),
-              date: row['Tanggal'] || '',
-              totalIncome: Number(row['Total Pemasukan']) || 0,
-              allocations: {
-                savingDireksi: Number(row['Saving Direksi']) || 0,
-                fee: Number(row['Fee']) || 0,
-                yayasanStisDarulUlum: Number(row['Yayasan STIS Darul Ulum']) || 0,
-                yayasanStisBda: Number(row['Yayasan STIS BDA']) || 0,
-                sewaGedung: Number(row['Sewa Gedung']) || 0,
-                operasionalKunciSarjana: Number(row['Operasional Kunci Sarjana']) || 0,
-                gaji: Number(row['Gaji']) || 0,
-              },
-              notes: row['Keterangan'] || '',
-              transactionId: row['Transaction ID'] || '',
-            }));
-            setDailyAllocations(mappedDailyAllocations);
-          }
-
-          if (newStudentPayments !== undefined) {
-            setStudentPayments(newStudentPayments || []);
-          } else if (pembayaranMahasiswa !== undefined) {
-            const mappedStudentPayments = pembayaranMahasiswa.map((row: any) => ({
-              id: row['ID'] || uuidv4(),
-              date: row['Tanggal'] || '',
-              studentName: row['Nama Mahasiswa'] || '',
-              kampus: row['Kampus'] || '',
-              totalSetor: Number(row['Total Setor']) || 0,
-              totalTagih: Number(row['Total Tagihan']) || 0,
-              statusTagihan: row['Status Tagihan'] || '',
-              sudahBayar: Number(row['Sudah Bayar']) || 0,
-              sisaTagihan: Number(row['Sisa Tagihan']) || 0,
-              ketBerkas: row['Ket Berkas'] || '',
-              catatanKeuangan: row['Catatan Keuangan'] || '',
-              periodePengiriman: row['Periode Pengiriman'] || '',
-              transactionId: row['Transaction ID'] || '',
-            }));
-            setStudentPayments(mappedStudentPayments);
-          }
-
-          if (newKasLedger !== undefined) {
-            setKasLedger(newKasLedger || []);
-          } else if (bukuBesarKas !== undefined) {
-            const mappedKasLedger = bukuBesarKas.map((row: any) => ({
-              id: row['ID'] || uuidv4(),
-              kasId: row['Kas ID'] || '',
-              date: row['Tanggal Transaksi'] || '',
-              depositDate: row['Tanggal Setor'] || '',
-              inAmount: Number(row['Pemasukan']) || 0,
-              outAmount: Number(row['Pengeluaran']) || 0,
-              loanedOutAmount: Number(row['Dipinjamkan']) || 0,
-              borrowedAmount: Number(row['Meminjam']) || 0,
-              notes: row['Keterangan'] || '',
-              kampus: row['Kampus Tujuan'] || '',
-              referenceId: row['Reference ID'] || '',
-              transactionId: row['Transaction ID'] || '',
-            }));
-            setKasLedger(mappedKasLedger);
-          }
-
-          if (newInterKasLoans !== undefined) {
-            setInterKasLoans(newInterKasLoans || []);
-          } else if (hutangPiutang !== undefined) {
-            const mappedInterKasLoans = hutangPiutang.map((row: any) => ({
-              id: row['ID'] || uuidv4(),
-              borrowerKasId: row['Kas Peminjam'] || '',
-              lenderKasId: row['Kas Pemberi Pinjaman'] || '',
-              amount: Number(row['Jumlah']) || 0,
-              purpose: row['Tujuan'] || '',
-              date: row['Tanggal Pinjam'] || '',
-              dueDate: row['Tanggal Jatuh Tempo'] || '',
-              status: row['Status'] || 'pending',
-            }));
-            setInterKasLoans(mappedInterKasLoans);
-          }
-        }
-      }
+      await setDoc(doc(db, collectionName, data.id), data);
     } catch (error) {
-      // Suppress console.error to avoid spamming the console on network/CORS errors
-      // console.error("Failed to sync from cloud", error);
-    } finally {
-      setIsSyncing(false);
+      handleFirestoreError(error, OperationType.CREATE, `${collectionName}/${data.id}`);
     }
   };
 
-  const pushToCloud = async (action: string, data: any) => {
-    let targetUrl = settings.googleScriptUrl; // Fallback to main URL
-
-    if (action.includes('MARKETING')) {
-      targetUrl = settings.googleScriptUrl_marketing || targetUrl;
-    } else if (
-      action.includes('TRANSACTION') || 
-      action.includes('ALLOCATION') || 
-      action.includes('KAS_LEDGER') ||
-      action.includes('STUDENT_PAYMENT') ||
-      action === 'addDailyAllocation' ||
-      action === 'updateDailyAllocation' ||
-      action === 'addStudentPayment' ||
-      action === 'updateStudentPayment' ||
-      action === 'addLedgerEntry' ||
-      action === 'updateLedgerEntry' ||
-      action === 'addInterKasLoan' ||
-      action === 'updateInterKasLoan' ||
-      action === 'deleteDailyAllocation' ||
-      action === 'deleteStudentPayment' ||
-      action === 'deleteLedgerEntry' ||
-      action === 'deleteInterKasLoan'
-    ) {
-      targetUrl = settings.googleScriptUrl_finance || targetUrl;
-    } else if (
-      action.includes('STUDENT') ||
-      action.includes('SURAT') ||
-      action.includes('INVENTARIS') ||
-      action.includes('EMPLOYEE') ||
-      action.includes('ATTENDANCE') ||
-      action.includes('LEAVE_REQUEST')
-    ) {
-      if (action.includes('STUDENT_PAYMENT') || action === 'addStudentPayment') {
-        targetUrl = settings.googleScriptUrl_finance || targetUrl;
-      } else {
-        targetUrl = settings.googleScriptUrl_admin || targetUrl;
-      }
+  const updateDocument = async (collectionName: string, id: string, updates: any) => {
+    try {
+      await updateDoc(doc(db, collectionName, id), updates);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `${collectionName}/${id}`);
     }
+  };
 
-    if (!targetUrl) return;
-
-    // Don't await this to keep UI responsive, or handle error silently
-    postToGoogleSheets(targetUrl, action, data).catch(() => {
-      // Suppress console.error
-    });
+  const deleteDocument = async (collectionName: string, id: string) => {
+    try {
+      await deleteDoc(doc(db, collectionName, id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `${collectionName}/${id}`);
+    }
   };
 
   const addReport = (report: Omit<SavedReport, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -562,7 +361,7 @@ export function useAppStore() {
     
     setReports((prev) => [newReport, ...prev]);
     syncReportToTransactions(newReport);
-    pushToCloud('CREATE_REPORT', newReport);
+    addDocument('reports', newReport);
     return newReport.id;
   };
 
@@ -572,7 +371,7 @@ export function useAppStore() {
         if (r.id === id) {
           const updatedReport = { ...r, ...updates, updatedAt: Date.now() };
           syncReportToTransactions(updatedReport);
-          pushToCloud('UPDATE_REPORT', updatedReport);
+          updateDocument('reports', id, updatedReport);
           return updatedReport;
         }
         return r;
@@ -583,12 +382,13 @@ export function useAppStore() {
   const deleteReport = (id: string) => {
     setReports((prev) => prev.filter((r) => r.id !== id));
     setTransactions((prev) => prev.filter((t) => t.reportId !== id));
-    pushToCloud('DELETE_REPORT', { id });
+    deleteDocument('reports', id);
   };
 
   const deleteAllReports = () => {
+    // Optimistic update
     setReports([]);
-    pushToCloud('DELETE_ALL_REPORTS', {});
+    reports.forEach(r => deleteDocument('reports', r.id));
   };
 
   const addInternalReport = (report: Omit<SavedInternalReport, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -600,7 +400,7 @@ export function useAppStore() {
     };
     
     setInternalReports((prev) => [newReport, ...prev]);
-    pushToCloud('CREATE_INTERNAL_REPORT', newReport);
+    addDocument('internalReports', newReport);
     return newReport.id;
   };
 
@@ -609,7 +409,7 @@ export function useAppStore() {
       prev.map((r) => {
         if (r.id === id) {
           const updatedReport = { ...r, ...updates, updatedAt: Date.now() };
-          pushToCloud('UPDATE_INTERNAL_REPORT', updatedReport);
+          updateDocument('internalReports', id, updatedReport);
           return updatedReport;
         }
         return r;
@@ -619,7 +419,7 @@ export function useAppStore() {
 
   const deleteInternalReport = (id: string) => {
     setInternalReports((prev) => prev.filter((r) => r.id !== id));
-    pushToCloud('DELETE_INTERNAL_REPORT', { id });
+    deleteDocument('internalReports', id);
   };
 
   const syncReportToTransactions = (report: SavedReport) => {
@@ -702,12 +502,8 @@ export function useAppStore() {
       // Sync these new transactions to cloud as well
       const transactionsToDelete = prevTransactions.filter(t => t.reportId === report.id).map(t => t.id);
       
-      if (newTransactions.length > 0 || transactionsToDelete.length > 0) {
-        pushToCloud('BATCH_TRANSACTIONS', {
-          adds: newTransactions,
-          deletes: transactionsToDelete
-        });
-      }
+      transactionsToDelete.forEach(id => deleteDocument('transactions', id));
+      newTransactions.forEach(t => addDocument('transactions', t));
 
       return [...newTransactions, ...filtered];
     });
@@ -717,7 +513,6 @@ export function useAppStore() {
     const updated = { ...settings, ...newSettings };
     // Optimistic update
     setSettings(updated);
-    pushToCloud('SAVE_SETTINGS', { ...updated, id: 'settings_1' });
     try {
       await setDoc(doc(db, 'settings', 'global'), updated);
     } catch (error) {
@@ -731,17 +526,17 @@ export function useAppStore() {
       id: uuidv4(),
     };
     setTransactions((prev) => [newTransaction, ...prev]);
-    pushToCloud('CREATE_TRANSACTION', newTransaction);
+    addDocument('transactions', newTransaction);
   };
 
   const deleteTransaction = (id: string) => {
     setTransactions((prev) => prev.filter((t) => t.id !== id));
-    pushToCloud('DELETE_TRANSACTION', { id });
+    deleteDocument('transactions', id);
   };
 
   const deleteAllTransactions = () => {
     setTransactions([]);
-    pushToCloud('DELETE_ALL_TRANSACTIONS', {});
+    transactions.forEach(t => deleteDocument('transactions', t.id));
   };
 
   const addDailyAllocation = (allocation: Omit<DailyAllocation, 'id' | 'transactionId'>) => {
@@ -750,7 +545,7 @@ export function useAppStore() {
       id: uuidv4(),
     };
     setDailyAllocations((prev) => [newAllocation, ...prev]);
-    pushToCloud('addDailyAllocation', newAllocation);
+    addDocument('dailyAllocations', newAllocation);
 
     // Auto-generate ledger entries
     const ledgerEntries: KasLedgerEntry[] = [];
@@ -792,7 +587,7 @@ export function useAppStore() {
 
     if (ledgerEntries.length > 0) {
       setKasLedger((prev) => [...ledgerEntries, ...prev]);
-      ledgerEntries.forEach(entry => pushToCloud('addLedgerEntry', entry));
+      ledgerEntries.forEach(entry => addDocument('kasLedger', entry));
     }
   };
 
@@ -801,7 +596,7 @@ export function useAppStore() {
       const updated = prev.map(a => a.id === id ? { ...a, ...updates } : a);
       const allocationToUpdate = updated.find(a => a.id === id);
       if (allocationToUpdate) {
-        pushToCloud('updateDailyAllocation', allocationToUpdate);
+        updateDocument('dailyAllocations', id, allocationToUpdate);
 
         // Update ledger entries
         setKasLedger(lPrev => {
@@ -843,9 +638,9 @@ export function useAppStore() {
           }
           
           // Delete old entries from cloud
-          lPrev.filter(l => l.referenceId === id).forEach(l => pushToCloud('deleteLedgerEntry', { id: l.id }));
+          lPrev.filter(l => l.referenceId === id).forEach(l => deleteDocument('kasLedger', l.id));
           // Add new entries to cloud
-          newEntries.forEach(entry => pushToCloud('addLedgerEntry', entry));
+          newEntries.forEach(entry => addDocument('kasLedger', entry));
 
           return [...newEntries, ...newLedger];
         });
@@ -860,10 +655,10 @@ export function useAppStore() {
     });
     setKasLedger((prev) => {
       const entriesToDelete = prev.filter((l) => l.referenceId === id);
-      entriesToDelete.forEach(entry => pushToCloud('deleteLedgerEntry', { id: entry.id }));
+      entriesToDelete.forEach(entry => deleteDocument('kasLedger', entry.id));
       return prev.filter((l) => l.referenceId !== id);
     });
-    pushToCloud('deleteDailyAllocation', { id });
+    deleteDocument('dailyAllocations', id);
   };
 
   const addKasLedgerEntry = (entry: Omit<KasLedgerEntry, 'id' | 'transactionId'>) => {
@@ -909,12 +704,12 @@ export function useAppStore() {
           description: entry.notes,
         };
         setTransactions((prev) => [newTransaction, ...prev]);
-        pushToCloud('CREATE_TRANSACTION', newTransaction);
+        addDocument('transactions', newTransaction);
       }
     }
 
     setKasLedger((prev) => [newEntry, ...prev]);
-    pushToCloud('addLedgerEntry', newEntry);
+    addDocument('kasLedger', newEntry);
   };
 
   const updateKasLedgerEntry = (id: string, updates: Partial<KasLedgerEntry>) => {
@@ -922,7 +717,7 @@ export function useAppStore() {
       const updated = prev.map(entry => entry.id === id ? { ...entry, ...updates } : entry);
       const entryToUpdate = updated.find(e => e.id === id);
       if (entryToUpdate) {
-        pushToCloud('updateLedgerEntry', entryToUpdate);
+        updateDocument('kasLedger', id, entryToUpdate);
         
         if (entryToUpdate.transactionId && !entryToUpdate.referenceId) {
           let type: 'INCOME' | 'EXPENSE' | null = null;
@@ -959,7 +754,7 @@ export function useAppStore() {
               } : t);
               const updatedTransaction = updatedTransactions.find(t => t.id === entryToUpdate.transactionId);
               if (updatedTransaction) {
-                pushToCloud('UPDATE_TRANSACTION', updatedTransaction);
+                updateDocument('transactions', updatedTransaction.id, updatedTransaction);
               }
               return updatedTransactions;
             });
@@ -975,11 +770,11 @@ export function useAppStore() {
       const entry = prev.find((e) => e.id === id);
       if (entry && entry.transactionId) {
         setTransactions((tPrev) => tPrev.filter((t) => t.id !== entry.transactionId));
-        pushToCloud('DELETE_TRANSACTION', { id: entry.transactionId });
+        deleteDocument('transactions', entry.transactionId);
       }
       return prev.filter((e) => e.id !== id);
     });
-    pushToCloud('deleteLedgerEntry', { id });
+    deleteDocument('kasLedger', id);
   };
 
   const addStudent = (student: Omit<Student, 'id'>) => {
@@ -988,7 +783,7 @@ export function useAppStore() {
       id: uuidv4(),
     };
     setStudents((prev) => [newStudent, ...prev]);
-    pushToCloud('CREATE_STUDENT', newStudent);
+    addDocument('students', newStudent);
   };
 
   const updateStudent = (id: string, updates: Partial<Student>) => {
@@ -996,7 +791,7 @@ export function useAppStore() {
       prev.map((s) => {
         if (s.id === id) {
           const updatedStudent = { ...s, ...updates };
-          pushToCloud('UPDATE_STUDENT', updatedStudent);
+          updateDocument('students', id, updatedStudent);
           return updatedStudent;
         }
         return s;
@@ -1006,7 +801,7 @@ export function useAppStore() {
 
   const deleteStudent = (id: string) => {
     setStudents((prev) => prev.filter((s) => s.id !== id));
-    pushToCloud('DELETE_STUDENT', { id });
+    deleteDocument('students', id);
   };
 
   const addStudentPayment = (payment: Omit<StudentPayment, 'id'>) => {
@@ -1028,7 +823,7 @@ export function useAppStore() {
     };
 
     setTransactions((prev) => [newTransaction, ...prev]);
-    pushToCloud('CREATE_TRANSACTION', newTransaction);
+    addDocument('transactions', newTransaction);
 
     if (payment.totalSetor > 0) {
       const kasSetorEntry: KasLedgerEntry = {
@@ -1044,11 +839,11 @@ export function useAppStore() {
         referenceId: newPayment.id,
       };
       setKasLedger((prev) => [kasSetorEntry, ...prev]);
-      pushToCloud('addLedgerEntry', kasSetorEntry);
+      addDocument('kasLedger', kasSetorEntry);
     }
 
     setStudentPayments((prev) => [newPayment, ...prev]);
-    pushToCloud('addStudentPayment', newPayment);
+    addDocument('studentPayments', newPayment);
   };
 
   const updateStudentPayment = (id: string, updates: Partial<StudentPayment>) => {
@@ -1056,7 +851,7 @@ export function useAppStore() {
       const updated = prev.map(payment => payment.id === id ? { ...payment, ...updates } : payment);
       const paymentToUpdate = updated.find(p => p.id === id);
       if (paymentToUpdate) {
-        pushToCloud('updateStudentPayment', paymentToUpdate);
+        updateDocument('studentPayments', id, paymentToUpdate);
         
         // Also update the associated transaction if it exists
         if (paymentToUpdate.transactionId) {
@@ -1069,7 +864,7 @@ export function useAppStore() {
             } : t);
             const updatedTransaction = updatedTransactions.find(t => t.id === paymentToUpdate.transactionId);
             if (updatedTransaction) {
-              pushToCloud('UPDATE_TRANSACTION', updatedTransaction);
+              updateDocument('transactions', updatedTransaction.id, updatedTransaction);
             }
             return updatedTransactions;
           });
@@ -1086,7 +881,7 @@ export function useAppStore() {
           } : l);
           const entryToUpdate = updatedLedger.find(l => l.referenceId === id);
           if (entryToUpdate) {
-            pushToCloud('updateLedgerEntry', entryToUpdate);
+            updateDocument('kasLedger', entryToUpdate.id, entryToUpdate);
           }
           return updatedLedger;
         });
@@ -1100,22 +895,22 @@ export function useAppStore() {
       const payment = prev.find((p) => p.id === id);
       if (payment && payment.transactionId) {
         setTransactions((tPrev) => tPrev.filter((t) => t.id !== payment.transactionId));
-        pushToCloud('DELETE_TRANSACTION', { id: payment.transactionId });
+        deleteDocument('transactions', payment.transactionId);
       }
       return prev.filter((p) => p.id !== id);
     });
     setKasLedger((prev) => {
       const entriesToDelete = prev.filter((l) => l.referenceId === id);
-      entriesToDelete.forEach(entry => pushToCloud('deleteLedgerEntry', { id: entry.id }));
+      entriesToDelete.forEach(entry => deleteDocument('kasLedger', entry.id));
       return prev.filter((l) => l.referenceId !== id);
     });
-    pushToCloud('deleteStudentPayment', { id });
+    deleteDocument('studentPayments', id);
   };
 
   const addInterKasLoan = (loan: Omit<InterKasLoan, 'id'>) => {
     const newLoan = { ...loan, id: uuidv4() };
     setInterKasLoans(prev => [...prev, newLoan]);
-    pushToCloud('addInterKasLoan', newLoan);
+    addDocument('interKasLoans', newLoan);
   };
 
   const updateInterKasLoan = (id: string, updates: Partial<InterKasLoan>) => {
@@ -1123,7 +918,7 @@ export function useAppStore() {
       const updated = prev.map(loan => loan.id === id ? { ...loan, ...updates } : loan);
       const loanToUpdate = updated.find(l => l.id === id);
       if (loanToUpdate) {
-        pushToCloud('updateInterKasLoan', loanToUpdate);
+        updateDocument('interKasLoans', id, loanToUpdate);
       }
       return updated;
     });
@@ -1131,19 +926,14 @@ export function useAppStore() {
 
   const deleteInterKasLoan = (id: string) => {
     setInterKasLoans(prev => prev.filter(loan => loan.id !== id));
-    pushToCloud('deleteInterKasLoan', { id });
+    deleteDocument('interKasLoans', id);
   };
 
   const addStudentAdministration = async (admin: Omit<StudentAdministration, 'id'>) => {
     const newAdmin = { ...admin, id: uuidv4() };
     // Optimistic update
     setStudentAdministrations(prev => [newAdmin, ...prev]);
-    pushToCloud('CREATE_STUDENT_ADMINISTRATION', newAdmin);
-    try {
-      await setDoc(doc(db, 'studentAdministrations', newAdmin.id), newAdmin);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `studentAdministrations/${newAdmin.id}`);
-    }
+    addDocument('studentAdministrations', newAdmin);
   };
 
   const updateStudentAdministration = async (id: string, updates: Partial<StudentAdministration>) => {
@@ -1152,41 +942,22 @@ export function useAppStore() {
       const updated = prev.map(admin => admin.id === id ? { ...admin, ...updates } : admin);
       const adminToUpdate = updated.find(a => a.id === id);
       if (adminToUpdate) {
-        pushToCloud('UPDATE_STUDENT_ADMINISTRATION', adminToUpdate);
+        updateDocument('studentAdministrations', id, adminToUpdate);
       }
       return updated;
     });
-    try {
-      await updateDoc(doc(db, 'studentAdministrations', id), updates);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `studentAdministrations/${id}`);
-    }
   };
 
   const deleteStudentAdministration = async (id: string) => {
     // Optimistic update
     setStudentAdministrations(prev => prev.filter(admin => admin.id !== id));
-    pushToCloud('DELETE_STUDENT_ADMINISTRATION', { id });
-    try {
-      await deleteDoc(doc(db, 'studentAdministrations', id));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `studentAdministrations/${id}`);
-    }
+    deleteDocument('studentAdministrations', id);
   };
 
   const deleteAllStudentAdministrations = async () => {
     // Optimistic update
     setStudentAdministrations([]);
-    pushToCloud('DELETE_ALL_STUDENT_ADMINISTRATIONS', {});
-    try {
-      // Note: Deleting all documents in a collection from the client is generally not recommended
-      // but we'll do it sequentially for now if needed.
-      for (const admin of studentAdministrations) {
-        await deleteDoc(doc(db, 'studentAdministrations', admin.id));
-      }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `studentAdministrations`);
-    }
+    studentAdministrations.forEach(admin => deleteDocument('studentAdministrations', admin.id));
   };
 
   const addMarketingReport = (report: Omit<SavedMarketingReport, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -1198,7 +969,7 @@ export function useAppStore() {
       status: 'draft',
     };
     setMarketingReports((prev) => [newReport, ...prev]);
-    pushToCloud('CREATE_MARKETING_REPORT', newReport);
+    addDocument('marketingReports', newReport);
     return newReport.id;
   };
 
@@ -1207,7 +978,7 @@ export function useAppStore() {
       const updated = prev.map(r => r.id === id ? { ...r, ...updates, updatedAt: Date.now() } : r);
       const reportToUpdate = updated.find(r => r.id === id);
       if (reportToUpdate) {
-        pushToCloud('UPDATE_MARKETING_REPORT', reportToUpdate);
+        updateDocument('marketingReports', id, reportToUpdate);
       }
       return updated;
     });
@@ -1215,7 +986,7 @@ export function useAppStore() {
 
   const deleteMarketingReport = (id: string) => {
     setMarketingReports((prev) => prev.filter((r) => r.id !== id));
-    pushToCloud('DELETE_MARKETING_REPORT', { id });
+    deleteDocument('marketingReports', id);
   };
 
   const addAdminReport = (report: Omit<SavedAdminReport, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -1227,7 +998,7 @@ export function useAppStore() {
       status: 'draft',
     };
     setAdminReports((prev) => [newReport, ...prev]);
-    pushToCloud('CREATE_ADMIN_REPORT', newReport);
+    addDocument('adminReports', newReport);
     return newReport.id;
   };
 
@@ -1236,7 +1007,7 @@ export function useAppStore() {
       const updated = prev.map(r => r.id === id ? { ...r, ...updates, updatedAt: Date.now() } : r);
       const reportToUpdate = updated.find(r => r.id === id);
       if (reportToUpdate) {
-        pushToCloud('UPDATE_ADMIN_REPORT', reportToUpdate);
+        updateDocument('adminReports', id, reportToUpdate);
       }
       return updated;
     });
@@ -1244,113 +1015,165 @@ export function useAppStore() {
 
   const deleteAdminReport = (id: string) => {
     setAdminReports((prev) => prev.filter((r) => r.id !== id));
-    pushToCloud('DELETE_ADMIN_REPORT', { id });
+    deleteDocument('adminReports', id);
   };
 
   const addSurat = (surat: Omit<Surat, 'id'>) => {
     const newSurat = { ...surat, id: uuidv4() };
     setSuratList(prev => [newSurat, ...prev]);
-    pushToCloud('CREATE_SURAT', newSurat);
+    addDocument('suratList', newSurat);
   };
 
   const updateSurat = (id: string, updates: Partial<Surat>) => {
     setSuratList(prev => {
       const updated = prev.map(s => s.id === id ? { ...s, ...updates } : s);
       const suratToUpdate = updated.find(s => s.id === id);
-      if (suratToUpdate) pushToCloud('UPDATE_SURAT', suratToUpdate);
+      if (suratToUpdate) updateDocument('suratList', id, suratToUpdate);
       return updated;
     });
   };
 
   const deleteSurat = (id: string) => {
     setSuratList(prev => prev.filter(s => s.id !== id));
-    pushToCloud('DELETE_SURAT', { id });
+    deleteDocument('suratList', id);
   };
 
   const addInventaris = (inventaris: Omit<Inventaris, 'id'>) => {
     const newInventaris = { ...inventaris, id: uuidv4() };
     setInventarisList(prev => [newInventaris, ...prev]);
-    pushToCloud('CREATE_INVENTARIS', newInventaris);
+    addDocument('inventarisList', newInventaris);
   };
 
   const updateInventaris = (id: string, updates: Partial<Inventaris>) => {
     setInventarisList(prev => {
       const updated = prev.map(i => i.id === id ? { ...i, ...updates } : i);
       const inventarisToUpdate = updated.find(i => i.id === id);
-      if (inventarisToUpdate) pushToCloud('UPDATE_INVENTARIS', inventarisToUpdate);
+      if (inventarisToUpdate) updateDocument('inventarisList', id, inventarisToUpdate);
       return updated;
     });
   };
 
   const deleteInventaris = (id: string) => {
     setInventarisList(prev => prev.filter(i => i.id !== id));
-    pushToCloud('DELETE_INVENTARIS', { id });
+    deleteDocument('inventarisList', id);
   };
 
   const addEmployee = (employee: Omit<Employee, 'id'>) => {
     const newEmployee = { ...employee, id: uuidv4() };
     setEmployees(prev => [newEmployee, ...prev]);
-    pushToCloud('CREATE_EMPLOYEE', newEmployee);
+    addDocument('employees', newEmployee);
   };
 
   const updateEmployee = (id: string, updates: Partial<Employee>) => {
     setEmployees(prev => {
       const updated = prev.map(e => e.id === id ? { ...e, ...updates } : e);
       const employeeToUpdate = updated.find(e => e.id === id);
-      if (employeeToUpdate) pushToCloud('UPDATE_EMPLOYEE', employeeToUpdate);
+      if (employeeToUpdate) updateDocument('employees', id, employeeToUpdate);
       return updated;
     });
   };
 
   const deleteEmployee = (id: string) => {
     setEmployees(prev => prev.filter(e => e.id !== id));
-    pushToCloud('DELETE_EMPLOYEE', { id });
+    deleteDocument('employees', id);
   };
 
   const addAttendance = (attendance: Omit<Attendance, 'id'>) => {
     const newAttendance = { ...attendance, id: uuidv4() };
     setAttendances(prev => [newAttendance, ...prev]);
-    pushToCloud('CREATE_ATTENDANCE', newAttendance);
+    addDocument('attendances', newAttendance);
   };
 
   const updateAttendance = (id: string, updates: Partial<Attendance>) => {
     setAttendances(prev => {
       const updated = prev.map(a => a.id === id ? { ...a, ...updates } : a);
       const attendanceToUpdate = updated.find(a => a.id === id);
-      if (attendanceToUpdate) pushToCloud('UPDATE_ATTENDANCE', attendanceToUpdate);
+      if (attendanceToUpdate) updateDocument('attendances', id, attendanceToUpdate);
       return updated;
     });
   };
 
   const deleteAttendance = (id: string) => {
     setAttendances(prev => prev.filter(a => a.id !== id));
-    pushToCloud('DELETE_ATTENDANCE', { id });
+    deleteDocument('attendances', id);
   };
 
   const addLeaveRequest = (leaveRequest: Omit<LeaveRequest, 'id'>) => {
     const newLeaveRequest = { ...leaveRequest, id: uuidv4() };
     setLeaveRequests(prev => [newLeaveRequest, ...prev]);
-    pushToCloud('CREATE_LEAVE_REQUEST', newLeaveRequest);
+    addDocument('leaveRequests', newLeaveRequest);
   };
 
   const updateLeaveRequest = (id: string, updates: Partial<LeaveRequest>) => {
     setLeaveRequests(prev => {
       const updated = prev.map(l => l.id === id ? { ...l, ...updates } : l);
       const leaveRequestToUpdate = updated.find(l => l.id === id);
-      if (leaveRequestToUpdate) pushToCloud('UPDATE_LEAVE_REQUEST', leaveRequestToUpdate);
+      if (leaveRequestToUpdate) updateDocument('leaveRequests', id, leaveRequestToUpdate);
       return updated;
     });
   };
 
   const deleteLeaveRequest = (id: string) => {
     setLeaveRequests(prev => prev.filter(l => l.id !== id));
-    pushToCloud('DELETE_LEAVE_REQUEST', { id });
+    deleteDocument('leaveRequests', id);
   };
 
-  const syncAllToCloud = async () => {
-    // With the new backend, data is synced automatically on every change.
-    // A full sync is not supported and not necessary.
-    return { success: true, message: 'Auto-sync aktif. Data tersinkronisasi secara otomatis pada setiap perubahan.' };
+  const migrateDataToFirebase = async () => {
+    setIsSyncing(true);
+    try {
+      const getLocalData = (key: string, fallback: any[] = []) => {
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : fallback;
+      };
+
+      const collections = [
+        { name: 'reports', data: getLocalData(STORAGE_KEYS.REPORTS) },
+        { name: 'internalReports', data: getLocalData(STORAGE_KEYS.INTERNAL_REPORTS) },
+        { name: 'transactions', data: getLocalData(STORAGE_KEYS.TRANSACTIONS) },
+        { name: 'dailyAllocations', data: getLocalData(STORAGE_KEYS.DAILY_ALLOCATIONS) },
+        { name: 'kasLedger', data: getLocalData(STORAGE_KEYS.KAS_LEDGER) },
+        { name: 'students', data: getLocalData(STORAGE_KEYS.STUDENTS) },
+        { name: 'studentPayments', data: getLocalData(STORAGE_KEYS.STUDENT_PAYMENTS) },
+        { name: 'studentAdministrations', data: getLocalData(STORAGE_KEYS.STUDENT_ADMINISTRATIONS) },
+        { name: 'interKasLoans', data: getLocalData(STORAGE_KEYS.INTER_KAS_LOANS) },
+        { name: 'marketingReports', data: getLocalData(STORAGE_KEYS.MARKETING_REPORTS) },
+        { name: 'adminReports', data: getLocalData(STORAGE_KEYS.ADMIN_REPORTS) },
+        { name: 'suratList', data: getLocalData(STORAGE_KEYS.SURAT) },
+        { name: 'inventarisList', data: getLocalData(STORAGE_KEYS.INVENTARIS) },
+        { name: 'employees', data: getLocalData(STORAGE_KEYS.EMPLOYEES) },
+        { name: 'attendances', data: getLocalData(STORAGE_KEYS.ATTENDANCES) },
+        { name: 'leaveRequests', data: getLocalData(STORAGE_KEYS.LEAVE_REQUESTS) },
+        // Marketing Store Data
+        { name: 'timMarketing', data: getLocalData('app_tim_marketing') },
+        { name: 'akunAds', data: getLocalData('app_akun_ads') },
+        { name: 'laporanAds', data: getLocalData('app_laporan_ads') },
+        { name: 'laporanCS', data: getLocalData('app_laporan_cs') },
+        { name: 'prospekCRM', data: getLocalData('app_prospek_crm') },
+        { name: 'targetKPI', data: getLocalData('app_target_kpi') },
+      ];
+
+      for (const { name, data } of collections) {
+        for (const item of data) {
+          if (item && item.id) {
+            await setDoc(doc(db, name, item.id), item);
+          }
+        }
+      }
+      
+      const localSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+      if (localSettings) {
+        await setDoc(doc(db, 'settings', 'global'), JSON.parse(localSettings));
+      } else if (settings) {
+        await setDoc(doc(db, 'settings', 'global'), settings);
+      }
+      
+      return { success: true, message: 'Migrasi data ke Firebase berhasil!' };
+    } catch (error) {
+      console.error('Migration error:', error);
+      return { success: false, message: 'Gagal memigrasikan data ke Firebase.' };
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   return {
@@ -1422,8 +1245,7 @@ export function useAppStore() {
     addLeaveRequest,
     updateLeaveRequest,
     deleteLeaveRequest,
-    syncAllToCloud,
-    syncFromCloud,
+    migrateDataToFirebase,
     isLoaded,
     isSyncing,
   };

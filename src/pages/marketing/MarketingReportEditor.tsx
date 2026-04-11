@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAppStore } from '../../hooks/useAppStore';
+import { useAppStore } from '../../contexts/AppStoreContext';
 import { MarketingReportForm } from '../../components/MarketingReportForm';
 import { MarketingReportPreview } from '../../components/MarketingReportPreview';
 import { MarketingReportData, initialMarketingReportData } from '../../types';

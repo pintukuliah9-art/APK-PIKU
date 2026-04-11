@@ -25,6 +25,9 @@ export default function MarketingDashboard() {
 
   useEffect(() => {
     init();
+    return () => {
+      useMarketingStore.getState().cleanup();
+    };
   }, [init]);
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'laporanAds' | 'laporanCS' | 'prospek' | 'pengaturan'>('dashboard');
@@ -493,7 +496,7 @@ function LaporanAdsTab() {
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
             <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center shrink-0">
               <h2 className="text-xl font-bold">{editingId ? 'Edit' : 'Tambah'} Laporan Ads</h2>
-              <button onClick={() => setShowForm(false)} className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300">✕</button>
+              <button onClick={() => setIsFormOpen(false)} className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
@@ -669,7 +672,7 @@ function LaporanCSTab() {
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
             <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center shrink-0">
               <h2 className="text-xl font-bold">{editingId ? 'Edit' : 'Tambah'} Laporan CS</h2>
-              <button onClick={() => setShowForm(false)} className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300">✕</button>
+              <button onClick={() => setIsFormOpen(false)} className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
@@ -851,7 +854,7 @@ function ProspekCRMTab() {
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
             <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center shrink-0">
               <h2 className="text-xl font-bold">{editingId ? 'Edit' : 'Tambah'} Prospek CRM</h2>
-              <button onClick={() => setShowForm(false)} className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300">✕</button>
+              <button onClick={() => setIsFormOpen(false)} className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:text-slate-300">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">

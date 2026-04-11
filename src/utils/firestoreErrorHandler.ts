@@ -29,8 +29,16 @@ interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+
+  // Ignore permission errors if the user is not logged in (likely during logout)
+  if (errorMessage.includes('Missing or insufficient permissions') && !auth.currentUser) {
+    console.warn('Ignored permission error during logout for path:', path);
+    return;
+  }
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMessage,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,

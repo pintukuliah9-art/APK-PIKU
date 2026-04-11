@@ -7,6 +7,10 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
+// Secondary app for creating users without logging out the main user
+const secondaryApp = initializeApp(firebaseConfig, 'Secondary');
+export const secondaryAuth = getAuth(secondaryApp);
+
 async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));

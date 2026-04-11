@@ -8,27 +8,9 @@ import {
   DataProspekCRM, 
   TargetKPIMarketing 
 } from '../types/app';
-import { fetchFromGoogleSheets, postToGoogleSheets } from '../services/googleSheetsService';
-
-const STORAGE_KEYS = {
-  TIM_MARKETING: 'app_tim_marketing',
-  AKUN_ADS: 'app_akun_ads',
-  LAPORAN_ADS: 'app_laporan_ads',
-  LAPORAN_CS: 'app_laporan_cs',
-  PROSPEK_CRM: 'app_prospek_crm',
-  TARGET_KPI: 'app_target_kpi',
-};
-
-// Initial Mock Data
-const INITIAL_TIM: MasterTimMarketing[] = [
-  { id: 'MKT-01', namaLengkap: 'Ahmad Advertiser', posisi: 'Advertiser', status: 'Aktif' },
-  { id: 'MKT-02', namaLengkap: 'Budi CS', posisi: 'CS Admin', status: 'Aktif' },
-];
-
-const INITIAL_AKUN: MasterAkunAds[] = [
-  { id: 'ADS-01', namaAkun: 'FB_Kampus_Utama', platform: 'Facebook' },
-  { id: 'ADS-02', namaAkun: 'IG_Promo_Maret', platform: 'Instagram' },
-];
+import { db, auth } from '../firebase';
+import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 
 interface MarketingState {
   timMarketing: MasterTimMarketing[];
@@ -38,8 +20,10 @@ interface MarketingState {
   prospekCRM: DataProspekCRM[];
   targetKPI: TargetKPIMarketing[];
   isLoaded: boolean;
+  unsubscribes: (() => void)[];
   
   init: () => Promise<void>;
+  cleanup: () => void;
   
   addLaporanAds: (data: Omit<LaporanHarianAds, 'id'>) => void;
   updateLaporanAds: (id: string, data: Partial<LaporanHarianAds>) => void;
@@ -64,6 +48,30 @@ interface MarketingState {
   deleteTargetKPI: (id: string) => void;
 }
 
+const addDocument = async (collectionName: string, data: any) => {
+  try {
+    await setDoc(doc(db, collectionName, data.id), data);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, `${collectionName}/${data.id}`);
+  }
+};
+
+const updateDocument = async (collectionName: string, id: string, updates: any) => {
+  try {
+    await updateDoc(doc(db, collectionName, id), updates);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `${collectionName}/${id}`);
+  }
+};
+
+const deleteDocument = async (collectionName: string, id: string) => {
+  try {
+    await deleteDoc(doc(db, collectionName, id));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `${collectionName}/${id}`);
+  }
+};
+
 export const useMarketingStore = create<MarketingState>((set, get) => ({
   timMarketing: [],
   akunAds: [],
@@ -72,211 +80,141 @@ export const useMarketingStore = create<MarketingState>((set, get) => ({
   prospekCRM: [],
   targetKPI: [],
   isLoaded: false,
+  unsubscribes: [],
 
   init: async () => {
     if (get().isLoaded) return;
 
-    // Load from localStorage first
-    const loadedTim = localStorage.getItem(STORAGE_KEYS.TIM_MARKETING);
-    const loadedAkun = localStorage.getItem(STORAGE_KEYS.AKUN_ADS);
-    const loadedLaporanAds = localStorage.getItem(STORAGE_KEYS.LAPORAN_ADS);
-    const loadedLaporanCS = localStorage.getItem(STORAGE_KEYS.LAPORAN_CS);
-    const loadedProspek = localStorage.getItem(STORAGE_KEYS.PROSPEK_CRM);
-    const loadedKPI = localStorage.getItem(STORAGE_KEYS.TARGET_KPI);
+    const unsubscribes: (() => void)[] = [];
 
-    set({
-      timMarketing: loadedTim ? JSON.parse(loadedTim) : INITIAL_TIM,
-      akunAds: loadedAkun ? JSON.parse(loadedAkun) : INITIAL_AKUN,
-      laporanAds: loadedLaporanAds ? JSON.parse(loadedLaporanAds) : [],
-      laporanCS: loadedLaporanCS ? JSON.parse(loadedLaporanCS) : [],
-      prospekCRM: loadedProspek ? JSON.parse(loadedProspek) : [],
-      targetKPI: loadedKPI ? JSON.parse(loadedKPI) : [],
-      isLoaded: true
-    });
-
-    // Then sync with Google Sheets
-    const sheetsData = await fetchFromGoogleSheets();
-    if (sheetsData) {
-      set((state) => {
-        const newState = { ...state };
-        
-        const mergeData = (local: any[], remote: any[]) => {
-          if (!remote || remote.length === 0) return local;
-          const remoteIds = new Set(remote.map((r: any) => r.id));
-          const localOnly = local.filter((l: any) => !remoteIds.has(l.id));
-          
-          // Keep remote items, but append local items that aren't on remote yet
-          // This prevents newly added items from disappearing before they sync
-          return [...remote, ...localOnly];
-        };
-
-        if (sheetsData.TimMarketing) newState.timMarketing = mergeData(state.timMarketing, sheetsData.TimMarketing);
-        if (sheetsData.AkunAds) newState.akunAds = mergeData(state.akunAds, sheetsData.AkunAds);
-        if (sheetsData.LaporanAds) newState.laporanAds = mergeData(state.laporanAds, sheetsData.LaporanAds);
-        if (sheetsData.LaporanCS) newState.laporanCS = mergeData(state.laporanCS, sheetsData.LaporanCS);
-        if (sheetsData.ProspekCRM) newState.prospekCRM = mergeData(state.prospekCRM, sheetsData.ProspekCRM);
-        if (sheetsData.TargetKPI) newState.targetKPI = mergeData(state.targetKPI, sheetsData.TargetKPI);
-        
-        // Save to localStorage
-        localStorage.setItem(STORAGE_KEYS.TIM_MARKETING, JSON.stringify(newState.timMarketing));
-        localStorage.setItem(STORAGE_KEYS.AKUN_ADS, JSON.stringify(newState.akunAds));
-        localStorage.setItem(STORAGE_KEYS.LAPORAN_ADS, JSON.stringify(newState.laporanAds));
-        localStorage.setItem(STORAGE_KEYS.LAPORAN_CS, JSON.stringify(newState.laporanCS));
-        localStorage.setItem(STORAGE_KEYS.PROSPEK_CRM, JSON.stringify(newState.prospekCRM));
-        localStorage.setItem(STORAGE_KEYS.TARGET_KPI, JSON.stringify(newState.targetKPI));
-        
-        return newState;
+    const setupListener = (collectionName: string, stateKey: keyof MarketingState) => {
+      const unsub = onSnapshot(collection(db, collectionName), (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        set({ [stateKey]: data } as any);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, collectionName);
       });
-    }
+      unsubscribes.push(unsub);
+    };
+
+    setupListener('timMarketing', 'timMarketing');
+    setupListener('akunAds', 'akunAds');
+    setupListener('laporanAds', 'laporanAds');
+    setupListener('laporanCS', 'laporanCS');
+    setupListener('prospekCRM', 'prospekCRM');
+    setupListener('targetKPI', 'targetKPI');
+
+    set({ isLoaded: true, unsubscribes });
+  },
+
+  cleanup: () => {
+    get().unsubscribes.forEach(unsub => unsub());
+    set({ isLoaded: false, unsubscribes: [] });
   },
 
   addLaporanAds: (data) => {
     const newItem = { ...data, id: uuidv4() };
-    set((state) => {
-      const newData = [newItem, ...state.laporanAds];
-      localStorage.setItem(STORAGE_KEYS.LAPORAN_ADS, JSON.stringify(newData));
-      return { laporanAds: newData };
-    });
-    postToGoogleSheets('add', 'LaporanAds', newItem);
+    set((state) => ({ laporanAds: [newItem, ...state.laporanAds] }));
+    addDocument('laporanAds', newItem);
   },
   
   updateLaporanAds: (id, data) => {
-    set((state) => {
-      const newData = state.laporanAds.map(item => item.id === id ? { ...item, ...data } : item);
-      localStorage.setItem(STORAGE_KEYS.LAPORAN_ADS, JSON.stringify(newData));
-      return { laporanAds: newData };
-    });
-    postToGoogleSheets('update', 'LaporanAds', { id, ...data });
+    set((state) => ({
+      laporanAds: state.laporanAds.map(item => item.id === id ? { ...item, ...data } : item)
+    }));
+    updateDocument('laporanAds', id, data);
   },
   
   deleteLaporanAds: (id) => {
-    set((state) => {
-      const newData = state.laporanAds.filter(item => item.id !== id);
-      localStorage.setItem(STORAGE_KEYS.LAPORAN_ADS, JSON.stringify(newData));
-      return { laporanAds: newData };
-    });
-    postToGoogleSheets('delete', 'LaporanAds', { id });
+    set((state) => ({
+      laporanAds: state.laporanAds.filter(item => item.id !== id)
+    }));
+    deleteDocument('laporanAds', id);
   },
 
   addLaporanCS: (data) => {
     const newItem = { ...data, id: uuidv4() };
-    set((state) => {
-      const newData = [newItem, ...state.laporanCS];
-      localStorage.setItem(STORAGE_KEYS.LAPORAN_CS, JSON.stringify(newData));
-      return { laporanCS: newData };
-    });
-    postToGoogleSheets('add', 'LaporanCS', newItem);
+    set((state) => ({ laporanCS: [newItem, ...state.laporanCS] }));
+    addDocument('laporanCS', newItem);
   },
   
   updateLaporanCS: (id, data) => {
-    set((state) => {
-      const newData = state.laporanCS.map(item => item.id === id ? { ...item, ...data } : item);
-      localStorage.setItem(STORAGE_KEYS.LAPORAN_CS, JSON.stringify(newData));
-      return { laporanCS: newData };
-    });
-    postToGoogleSheets('update', 'LaporanCS', { id, ...data });
+    set((state) => ({
+      laporanCS: state.laporanCS.map(item => item.id === id ? { ...item, ...data } : item)
+    }));
+    updateDocument('laporanCS', id, data);
   },
   
   deleteLaporanCS: (id) => {
-    set((state) => {
-      const newData = state.laporanCS.filter(item => item.id !== id);
-      localStorage.setItem(STORAGE_KEYS.LAPORAN_CS, JSON.stringify(newData));
-      return { laporanCS: newData };
-    });
-    postToGoogleSheets('delete', 'LaporanCS', { id });
+    set((state) => ({
+      laporanCS: state.laporanCS.filter(item => item.id !== id)
+    }));
+    deleteDocument('laporanCS', id);
   },
 
   addProspekCRM: (data) => {
     const newItem = { ...data, id: uuidv4() };
-    set((state) => {
-      const newData = [newItem, ...state.prospekCRM];
-      localStorage.setItem(STORAGE_KEYS.PROSPEK_CRM, JSON.stringify(newData));
-      return { prospekCRM: newData };
-    });
-    postToGoogleSheets('add', 'ProspekCRM', newItem);
+    set((state) => ({ prospekCRM: [newItem, ...state.prospekCRM] }));
+    addDocument('prospekCRM', newItem);
   },
   
   updateProspekCRM: (id, data) => {
-    set((state) => {
-      const newData = state.prospekCRM.map(item => item.id === id ? { ...item, ...data } : item);
-      localStorage.setItem(STORAGE_KEYS.PROSPEK_CRM, JSON.stringify(newData));
-      return { prospekCRM: newData };
-    });
-    postToGoogleSheets('update', 'ProspekCRM', { id, ...data });
+    set((state) => ({
+      prospekCRM: state.prospekCRM.map(item => item.id === id ? { ...item, ...data } : item)
+    }));
+    updateDocument('prospekCRM', id, data);
   },
   
   deleteProspekCRM: (id) => {
-    set((state) => {
-      const newData = state.prospekCRM.filter(item => item.id !== id);
-      localStorage.setItem(STORAGE_KEYS.PROSPEK_CRM, JSON.stringify(newData));
-      return { prospekCRM: newData };
-    });
-    postToGoogleSheets('delete', 'ProspekCRM', { id });
+    set((state) => ({
+      prospekCRM: state.prospekCRM.filter(item => item.id !== id)
+    }));
+    deleteDocument('prospekCRM', id);
   },
 
   addTimMarketing: (data) => {
     const newItem = { ...data, id: uuidv4() };
-    set((state) => {
-      const newData = [newItem, ...state.timMarketing];
-      localStorage.setItem(STORAGE_KEYS.TIM_MARKETING, JSON.stringify(newData));
-      return { timMarketing: newData };
-    });
-    postToGoogleSheets('add', 'TimMarketing', newItem);
+    set((state) => ({ timMarketing: [newItem, ...state.timMarketing] }));
+    addDocument('timMarketing', newItem);
   },
   
   deleteTimMarketing: (id) => {
-    set((state) => {
-      const newData = state.timMarketing.filter(item => item.id !== id);
-      localStorage.setItem(STORAGE_KEYS.TIM_MARKETING, JSON.stringify(newData));
-      return { timMarketing: newData };
-    });
-    postToGoogleSheets('delete', 'TimMarketing', { id });
+    set((state) => ({
+      timMarketing: state.timMarketing.filter(item => item.id !== id)
+    }));
+    deleteDocument('timMarketing', id);
   },
 
   addAkunAds: (data) => {
     const newItem = { ...data, id: uuidv4() };
-    set((state) => {
-      const newData = [newItem, ...state.akunAds];
-      localStorage.setItem(STORAGE_KEYS.AKUN_ADS, JSON.stringify(newData));
-      return { akunAds: newData };
-    });
-    postToGoogleSheets('add', 'AkunAds', newItem);
+    set((state) => ({ akunAds: [newItem, ...state.akunAds] }));
+    addDocument('akunAds', newItem);
   },
   
   deleteAkunAds: (id) => {
-    set((state) => {
-      const newData = state.akunAds.filter(item => item.id !== id);
-      localStorage.setItem(STORAGE_KEYS.AKUN_ADS, JSON.stringify(newData));
-      return { akunAds: newData };
-    });
-    postToGoogleSheets('delete', 'AkunAds', { id });
+    set((state) => ({
+      akunAds: state.akunAds.filter(item => item.id !== id)
+    }));
+    deleteDocument('akunAds', id);
   },
 
   addTargetKPI: (data) => {
     const newItem = { ...data, id: uuidv4() };
-    set((state) => {
-      const newData = [newItem, ...state.targetKPI];
-      localStorage.setItem(STORAGE_KEYS.TARGET_KPI, JSON.stringify(newData));
-      return { targetKPI: newData };
-    });
-    postToGoogleSheets('add', 'TargetKPI', newItem);
+    set((state) => ({ targetKPI: [newItem, ...state.targetKPI] }));
+    addDocument('targetKPI', newItem);
   },
   
   updateTargetKPI: (id, data) => {
-    set((state) => {
-      const newData = state.targetKPI.map(item => item.id === id ? { ...item, ...data } : item);
-      localStorage.setItem(STORAGE_KEYS.TARGET_KPI, JSON.stringify(newData));
-      return { targetKPI: newData };
-    });
-    postToGoogleSheets('update', 'TargetKPI', { id, ...data });
+    set((state) => ({
+      targetKPI: state.targetKPI.map(item => item.id === id ? { ...item, ...data } : item)
+    }));
+    updateDocument('targetKPI', id, data);
   },
   
   deleteTargetKPI: (id) => {
-    set((state) => {
-      const newData = state.targetKPI.filter(item => item.id !== id);
-      localStorage.setItem(STORAGE_KEYS.TARGET_KPI, JSON.stringify(newData));
-      return { targetKPI: newData };
-    });
-    postToGoogleSheets('delete', 'TargetKPI', { id });
+    set((state) => ({
+      targetKPI: state.targetKPI.filter(item => item.id !== id)
+    }));
+    deleteDocument('targetKPI', id);
   }
 }));

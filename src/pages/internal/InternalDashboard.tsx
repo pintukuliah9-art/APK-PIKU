@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAppStore } from '../../hooks/useAppStore';
+import { useAppStore } from '../../contexts/AppStoreContext';
 import { Users, Briefcase, Megaphone, FolderOpen, Activity, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatCurrency } from '../../lib/utils';

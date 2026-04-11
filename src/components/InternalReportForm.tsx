@@ -2,7 +2,7 @@ import React from 'react';
 import { InternalReportData, FinancialItem, AttachmentLink } from '../types';
 import { formatCurrency, formatNumberInput, parseNumberInput } from '../lib/utils';
 import { Plus, Trash2, Link as LinkIcon } from 'lucide-react';
-import { useAppStore } from '../hooks/useAppStore';
+import { useAppStore } from '../contexts/AppStoreContext';
 
 interface Props {
   data: InternalReportData;

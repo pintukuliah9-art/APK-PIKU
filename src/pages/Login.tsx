@@ -1,8 +1,55 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { Mail, Lock, AlertCircle } from 'lucide-react';
+import { createDefaultUsers } from '../setupUsers';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, loginWithEmail } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [setupLoading, setSetupLoading] = useState(false);
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await loginWithEmail(email, password);
+    } catch (err: any) {
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError('Email atau password salah.');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('Terlalu banyak percobaan gagal. Silakan coba lagi nanti.');
+      } else {
+        setError('Terjadi kesalahan saat login. Pastikan Email/Password provider aktif di Firebase Console.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    try {
+      await login();
+    } catch (err) {
+      setError('Gagal login dengan Google.');
+    }
+  };
+
+  const handleSetupUsers = async () => {
+    setSetupLoading(true);
+    try {
+      await createDefaultUsers();
+      alert('Default users created successfully! You can now log in.');
+    } catch (err) {
+      alert('Error creating default users. Check console.');
+    } finally {
+      setSetupLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-4">
@@ -15,9 +62,68 @@ export default function Login() {
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white text-center mb-2">Selamat Datang di TIM PIKU</h1>
         <p className="text-slate-500 dark:text-slate-400 text-center mb-8">Silakan masuk untuk melanjutkan</p>
         
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-3 text-red-700 dark:text-red-400 text-sm">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <p>{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleEmailLogin} className="space-y-4 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Mail className="h-5 w-5 text-slate-400" />
+              </div>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-white sm:text-sm"
+                placeholder="admin@example.com"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-slate-400" />
+              </div>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-white sm:text-sm"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
+          >
+            {loading ? 'Masuk...' : 'Masuk'}
+          </button>
+        </form>
+
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white dark:bg-slate-800 text-slate-500">Atau</span>
+          </div>
+        </div>
+
         <button
-          onClick={login}
-          className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-medium rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800"
+          onClick={handleGoogleLogin}
+          type="button"
+          className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-medium rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -39,6 +145,16 @@ export default function Login() {
           </svg>
           Masuk dengan Google
         </button>
+
+        <div className="mt-8 text-center">
+          <button 
+            onClick={handleSetupUsers}
+            disabled={setupLoading}
+            className="text-xs text-slate-400 hover:text-slate-600 underline"
+          >
+            {setupLoading ? 'Setting up...' : 'Setup Default Users (Dev Only)'}
+          </button>
+        </div>
       </div>
     </div>
   );

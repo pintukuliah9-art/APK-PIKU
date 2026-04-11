@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppStore } from '../../hooks/useAppStore';
+import { useAppStore } from '../../contexts/AppStoreContext';
 import { Plus, FileText, Calendar, Edit, Trash2 } from 'lucide-react';
 import { ConfirmModal } from '../../components/ConfirmModal';
 

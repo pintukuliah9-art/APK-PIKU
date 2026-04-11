@@ -2,7 +2,7 @@ import React from 'react';
 import { MarketingReportData, AdsSummary, CampaignRecap, DailyAdsExpense, CSRecap, CRMProspect, AttachmentLink } from '../types';
 import { Plus, Trash2, Wand2, Link as LinkIcon } from 'lucide-react';
 import { formatNumberInput, parseNumberInput } from '../lib/utils';
-import { useAppStore } from '../hooks/useAppStore';
+import { useAppStore } from '../contexts/AppStoreContext';
 
 interface Props {
   data: MarketingReportData;

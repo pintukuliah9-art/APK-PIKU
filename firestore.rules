@@ -3,49 +3,109 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: studentAdministrations
-    // Document ID: {studentId}
-    // Fields:
-    //   - namaLengkap: string
-    //   - program: string
-    //   - perguruanTinggi: string
-    //   - programStudi: string
-    //   - statusData: string
-    //   - email: string
-    //   - noHp: string
-    //   - (and many other string/number fields as per StudentAdministration interface)
-    //
-    // Collection: settings
-    // Document ID: {settingId}
-    // Fields:
-    //   - googleScriptUrl: string
-    //   - programPaths: list
-    //   - studyPrograms: list
-    //   - (and other settings fields)
-    //
-    // ===============================================================
-
-    // ===============================================================
     // Helper Functions
     // ===============================================================
     function isAuthenticated() {
       return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        getUserData().role == 'super_admin' || 
+        (request.auth.token.email == "kampus2stitbu@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && (getUserData().role == role || getUserData().role == 'admin' || isAdmin());
     }
 
     // ===============================================================
     // Rules
     // ===============================================================
     
-    match /studentAdministrations/{studentId} {
-      // For this internal dashboard, we allow authenticated users to read and write.
-      // In a production app, this should be restricted to specific admin roles.
-      allow read, write: if isAuthenticated();
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAdmin() || (isOwner(userId) && (
+        request.resource.data.role == 'guest' || 
+        (request.resource.data.role == 'super_admin' && request.auth.token.email == "kampus2stitbu@gmail.com")
+      ));
+      allow update: if isAdmin() || (isOwner(userId) && request.resource.data.role == resource.data.role);
+      allow delete: if isAdmin();
     }
 
     match /settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Academic / Student Admin
+    match /studentAdministrations/{document=**} {
+      allow read, write: if hasRole('academic_admin');
+    }
+    match /students/{document=**} {
+      allow read, write: if hasRole('academic_admin');
+    }
+    match /suratList/{document=**} {
+      allow read, write: if hasRole('academic_admin');
+    }
+    match /inventarisList/{document=**} {
+      allow read, write: if hasRole('academic_admin');
+    }
+    match /adminReports/{document=**} {
+      allow read, write: if hasRole('academic_admin');
+    }
+
+    // Finance
+    match /transactions/{document=**} {
+      allow read, write: if hasRole('finance_admin');
+    }
+    match /dailyAllocations/{document=**} {
+      allow read, write: if hasRole('finance_admin');
+    }
+    match /kasLedger/{document=**} {
+      allow read, write: if hasRole('finance_admin');
+    }
+    match /studentPayments/{document=**} {
+      allow read, write: if hasRole('finance_admin');
+    }
+    match /interKasLoans/{document=**} {
+      allow read, write: if hasRole('finance_admin');
+    }
+
+    // HR
+    match /employees/{document=**} {
+      allow read, write: if hasRole('hr_admin');
+    }
+    match /attendances/{document=**} {
+      allow read, write: if hasRole('hr_admin');
+    }
+    match /leaveRequests/{document=**} {
+      allow read, write: if hasRole('hr_admin');
+    }
+
+    // Marketing
+    match /marketingReports/{document=**} {
+      allow read, write: if hasRole('marketing_admin');
+    }
+
+    // Internal Reports (General)
+    match /reports/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    match /internalReports/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Fallback for migration
+    match /{document=**} {
       allow read, write: if isAuthenticated();
     }
   }

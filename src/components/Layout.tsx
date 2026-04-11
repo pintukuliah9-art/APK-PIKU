@@ -3,10 +3,11 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, FileText, PlusCircle, Menu, Database, 
   Users, Briefcase, Megaphone, FolderOpen, ChevronDown, ChevronRight,
-  Activity, X, Settings
+  Activity, X, Settings, LogOut
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -15,6 +16,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     'laporan': true
   });
   const location = useLocation();
+  const { user, userData, logout } = useAuth();
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -24,31 +26,39 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     setOpenGroups(prev => ({ ...prev, [group]: !prev[group] }));
   };
 
+  const role = userData?.role || 'guest';
+
+  // Define which roles can see which items
+  const canSeeFinance = ['super_admin', 'admin', 'finance_admin'].includes(role);
+  const canSeeHR = ['super_admin', 'admin', 'hr_admin'].includes(role);
+  const canSeeMarketing = ['super_admin', 'admin', 'marketing_admin'].includes(role);
+  const canSeeAcademic = ['super_admin', 'admin', 'academic_admin'].includes(role);
+
   const navGroups = [
     {
       id: 'internal',
       label: 'Dashboard Internal',
       items: [
-        { to: '/', icon: Activity, label: 'Dashboard Internal' },
-        { to: '/internal/marketing', icon: Megaphone, label: 'Marketing' },
-        { to: '/internal/finance', icon: Briefcase, label: 'Keuangan' },
-        { to: '/internal/admin', icon: FolderOpen, label: 'Administrasi' },
-        { to: '/internal/student-admin', icon: Users, label: 'Admin Mahasiswa' },
-        { to: '/internal/hr', icon: Users, label: 'SDM (HR)' },
-      ]
+        { to: '/', icon: Activity, label: 'Dashboard Internal', show: true },
+        { to: '/internal/marketing', icon: Megaphone, label: 'Marketing', show: canSeeMarketing },
+        { to: '/internal/finance', icon: Briefcase, label: 'Keuangan', show: canSeeFinance },
+        { to: '/internal/admin', icon: FolderOpen, label: 'Administrasi', show: canSeeAcademic },
+        { to: '/internal/student-admin', icon: Users, label: 'Admin Mahasiswa', show: canSeeAcademic },
+        { to: '/internal/hr', icon: Users, label: 'SDM (HR)', show: canSeeHR },
+      ].filter(item => item.show)
     },
     {
       id: 'laporan',
       label: 'Dashboard Laporan',
       items: [
-        { to: '/internal/reports', icon: FileText, label: 'Laporan Internal' },
-        { to: '/internal/create', icon: PlusCircle, label: 'Buat Laporan Internal' },
-        { to: '/internal/finance/reports', icon: FileText, label: 'Laporan Keuangan' },
-        { to: '/internal/marketing/reports', icon: FileText, label: 'Laporan Marketing' },
-        { to: '/internal/admin/reports', icon: FileText, label: 'Laporan Administrasi' },
-      ]
+        { to: '/internal/reports', icon: FileText, label: 'Laporan Internal', show: true },
+        { to: '/internal/create', icon: PlusCircle, label: 'Buat Laporan Internal', show: true },
+        { to: '/internal/finance/reports', icon: FileText, label: 'Laporan Keuangan', show: canSeeFinance },
+        { to: '/internal/marketing/reports', icon: FileText, label: 'Laporan Marketing', show: canSeeMarketing },
+        { to: '/internal/admin/reports', icon: FileText, label: 'Laporan Administrasi', show: canSeeAcademic },
+      ].filter(item => item.show)
     }
-  ];
+  ].filter(group => group.items.length > 0);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-sans text-slate-900 dark:text-slate-100 transition-colors">
@@ -140,14 +150,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <Settings size={20} />
             Pengaturan
           </NavLink>
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-slate-800/50 flex items-center justify-center text-blue-700 dark:text-slate-300 font-bold border border-blue-200 dark:border-slate-700/50">
-              A
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-slate-800/50 flex items-center justify-center text-blue-700 dark:text-slate-300 font-bold border border-blue-200 dark:border-slate-700/50 overflow-hidden">
+                {user?.photoURL ? (
+                  <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  user?.displayName?.charAt(0).toUpperCase() || 'U'
+                )}
+              </div>
+              <div className="text-sm overflow-hidden">
+                <p className="font-semibold text-slate-900 dark:text-white truncate">{user?.displayName || 'User'}</p>
+                <p className="text-slate-500 dark:text-slate-400 text-xs truncate capitalize">{role.replace('_', ' ')}</p>
+              </div>
             </div>
-            <div className="text-sm">
-              <p className="font-semibold text-slate-900 dark:text-white">Admin</p>
-              <p className="text-slate-500 dark:text-slate-400 text-xs">admin@stis.ac.id</p>
-            </div>
+            <button 
+              onClick={logout}
+              className="p-2 text-slate-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+              title="Logout"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </div>
       </aside>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { useAppStore } from '../../hooks/useAppStore';
+import { useAppStore } from '../../contexts/AppStoreContext';
 import { StudentAdministration } from '../../types/app';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -144,7 +144,7 @@ const STATUS_INFO = [
 ];
 
 export default function StudentAdministrationPage() {
-  const { studentAdministrations, addStudentAdministration, updateStudentAdministration, deleteStudentAdministration, deleteAllStudentAdministrations, settings, syncFromCloud, isSyncing } = useAppStore();
+  const { studentAdministrations, addStudentAdministration, updateStudentAdministration, deleteStudentAdministration, deleteAllStudentAdministrations, settings } = useAppStore();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -525,14 +525,6 @@ export default function StudentAdministrationPage() {
         <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
           {activeTab !== 'pengaturan' && (
             <>
-              <button
-                onClick={() => syncFromCloud()}
-                disabled={isSyncing}
-                className="inline-flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:bg-slate-800/50 transition-colors text-sm font-medium disabled:opacity-50 shadow-sm"
-              >
-                <RefreshCw size={16} className={isSyncing ? "animate-spin" : ""} />
-                {isSyncing ? 'Sinkronisasi...' : 'Sinkronkan'}
-              </button>
               <button
                 onClick={downloadTemplate}
                 className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 transition-colors text-sm font-medium border border-indigo-100"

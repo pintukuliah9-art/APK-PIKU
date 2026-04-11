@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Users, UserCheck, Clock, Plus, Search, Edit2, Trash2, X } from 'lucide-react';
-import { useAppStore } from '../../hooks/useAppStore';
+import { useAppStore } from '../../contexts/AppStoreContext';
 import { Employee, Attendance, LeaveRequest } from '../../types/app';
 import { ConfirmModal } from '../../components/ConfirmModal';
 

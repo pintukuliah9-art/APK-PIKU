@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAppStore } from '../../hooks/useAppStore';
+import { useAppStore } from '../../contexts/AppStoreContext';
 import { Plus, Trash2, Calendar, DollarSign, PieChart, ArrowLeft, ArrowUpRight, ArrowDownRight, ArrowRightLeft, Edit2 } from 'lucide-react';
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { motion } from 'motion/react';
