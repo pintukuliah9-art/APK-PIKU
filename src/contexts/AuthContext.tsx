@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, signInWithPopup, GoogleAuthProvider, signOut, signInWithEmailAndPassword } from 'firebase/auth';
+import { User, signInWithRedirect, GoogleAuthProvider, signOut, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
@@ -75,7 +75,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      // Use signInWithRedirect for better compatibility in iframes
+      await signInWithRedirect(auth, provider);
     } catch (error) {
       console.error('Login error:', error);
       throw error;
