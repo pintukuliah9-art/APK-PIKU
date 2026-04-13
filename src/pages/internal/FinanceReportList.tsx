@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, FileText, Calendar, Edit, Trash2 } from 'lucide-react';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { SavedFinanceReport } from '../../types/app';
+import { formatDateSafe } from '../../lib/utils';
 
 export default function FinanceReportList() {
   const navigate = useNavigate();
@@ -89,7 +90,7 @@ export default function FinanceReportList() {
                     <div className="flex items-center gap-4 mt-1 text-sm text-gray-500 dark:text-slate-400">
                       <span className="flex items-center gap-1">
                         <Calendar size={14} />
-                        Dibuat: {new Date(report.createdAt).toLocaleDateString('id-ID')}
+                        Dibuat: {formatDateSafe(report.createdAt)}
                       </span>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         report.status === 'final' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'

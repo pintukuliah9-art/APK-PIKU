@@ -313,6 +313,49 @@ export default function InternalFinance() {
     }).format(amount);
   };
 
+  const parseDateSafe = (dateStr: string) => {
+    if (!dateStr) return new Date();
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) return d;
+
+    const months: Record<string, string> = {
+      'januari': '01', 'februari': '02', 'maret': '03', 'april': '04',
+      'mei': '05', 'juni': '06', 'juli': '07', 'agustus': '08',
+      'september': '09', 'oktober': '10', 'november': '11', 'desember': '12',
+      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
+      'jul': '07', 'agu': '08', 'aug': '08', 'sep': '09', 'oct': '10', 'okt': '10',
+      'nov': '11', 'dec': '12', 'des': '12'
+    };
+
+    const parts = dateStr.toLowerCase().split(/[\s-]/);
+    if (parts.length >= 3) {
+      let day = parts[0];
+      let monthStr = parts[1];
+      let year = parts[2];
+      
+      if (parts[0].length === 4) {
+        year = parts[0];
+        monthStr = parts[1];
+        day = parts[2];
+      }
+
+      const month = months[monthStr] || monthStr;
+      const isoStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      const parsed = new Date(isoStr);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    return new Date();
+  };
+
+  const formatDateSafe = (dateStr: string) => {
+    try {
+      const d = parseDateSafe(dateStr);
+      return d.toLocaleDateString('id-ID');
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   const getAutoIncomeEntries = (kasId: string) => {
     if (kasId === 'fs_akselerasi') {
       return studentAdministrations
@@ -406,7 +449,7 @@ export default function InternalFinance() {
       }
     });
 
-    const entries = ledgerEntries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const entries = ledgerEntries.sort((a, b) => parseDateSafe(a.date).getTime() - parseDateSafe(b.date).getTime());
     
     let runningBalance = 0;
     const entriesWithBalance = entries.map(entry => {
@@ -442,57 +485,57 @@ export default function InternalFinance() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Dana Masuk</h3>
-            <p className="text-xl font-bold text-green-600 mt-2">
+          <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
+            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Dana Masuk</h3>
+            <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">
               {formatCurrency(entries.reduce((acc, curr) => acc + curr.inAmount, 0))}
             </p>
           </div>
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Dipakai</h3>
-            <p className="text-xl font-bold text-red-600 mt-2">
+          <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
+            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Dipakai</h3>
+            <p className="text-xl font-bold text-rose-600 dark:text-rose-400 mt-2">
               {formatCurrency(entries.reduce((acc, curr) => acc + curr.outAmount, 0))}
             </p>
           </div>
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Dipinjamkan</h3>
-            <p className="text-xl font-bold text-orange-600 mt-2">
+          <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
+            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Dipinjamkan</h3>
+            <p className="text-xl font-bold text-amber-600 dark:text-amber-400 mt-2">
               {formatCurrency(entries.reduce((acc, curr) => acc + curr.loanedOutAmount, 0))}
             </p>
           </div>
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Meminjam</h3>
-            <p className="text-xl font-bold text-blue-600 mt-2">
+          <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
+            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Meminjam</h3>
+            <p className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-2">
               {formatCurrency(entries.reduce((acc, curr) => acc + curr.borrowedAmount, 0))}
             </p>
           </div>
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 bg-blue-50">
-            <h3 className="text-sm font-medium text-blue-800">Saldo Akhir</h3>
-            <p className="text-2xl font-bold text-blue-900 mt-2">
+          <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35] bg-blue-50 dark:bg-blue-900/10">
+            <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">Saldo Akhir</h3>
+            <p className="text-2xl font-bold text-blue-900 dark:text-blue-400 mt-2">
               {formatCurrency(runningBalance)}
             </p>
           </div>
         </div>
 
         {selectedKas === 'kasSetor' && Object.keys(kampusBalances).length > 0 && (
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-            <div className="p-6 border-b border-gray-200 dark:border-slate-700">
-              <h3 className="font-semibold text-lg">Saldo Kas Setor per Kampus</h3>
+          <div className="bg-white dark:bg-[#1A1C23] rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35] overflow-hidden">
+            <div className="p-6 border-b border-slate-100 dark:border-[#2A2D35]">
+              <h3 className="font-semibold text-lg text-slate-900 dark:text-white">Saldo Kas Setor per Kampus</h3>
             </div>
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {Object.entries(kampusBalances).map(([kampus, balance]) => (
-                <div key={kampus} className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-                  <h4 className="text-sm font-medium text-indigo-800">{kampus}</h4>
-                  <p className="text-xl font-bold text-indigo-900 mt-1">{formatCurrency(balance)}</p>
+                <div key={kampus} className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-lg border border-indigo-100 dark:border-indigo-800/30">
+                  <h4 className="text-sm font-medium text-indigo-800 dark:text-indigo-300">{kampus}</h4>
+                  <p className="text-xl font-bold text-indigo-900 dark:text-indigo-400 mt-1">{formatCurrency(balance)}</p>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-            <h3 className="font-semibold text-lg">Riwayat Transaksi</h3>
+        <div className="bg-white dark:bg-[#1A1C23] rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35] overflow-hidden">
+          <div className="p-6 border-b border-slate-100 dark:border-[#2A2D35] flex justify-between items-center">
+            <h3 className="font-semibold text-lg text-slate-900 dark:text-white">Riwayat Transaksi</h3>
             <button
               onClick={handleOpenLedgerModal}
               className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
@@ -503,38 +546,38 @@ export default function InternalFinance() {
           </div>
           
           {entriesWithBalance.length === 0 ? (
-            <div className="p-8 text-center text-gray-500 dark:text-slate-400">
+            <div className="p-8 text-center text-slate-500 dark:text-slate-400">
               Belum ada data transaksi untuk kas ini.
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-700 text-sm">
-                    <th className="p-4 font-medium text-gray-600 dark:text-slate-400">Tanggal Transaksi</th>
-                    <th className="p-4 font-medium text-gray-600 dark:text-slate-400">Tanggal Deposit</th>
-                    {selectedKas === 'kasSetor' && <th className="p-4 font-medium text-gray-600 dark:text-slate-400">Kampus</th>}
-                    <th className="p-4 font-medium text-gray-600 dark:text-slate-400">Keterangan</th>
-                    <th className="p-4 font-medium text-gray-600 dark:text-slate-400 text-right">Dana Masuk</th>
-                    <th className="p-4 font-medium text-gray-600 dark:text-slate-400 text-right">Dipakai</th>
-                    <th className="p-4 font-medium text-gray-600 dark:text-slate-400 text-right">Dipinjamkan</th>
-                    <th className="p-4 font-medium text-gray-600 dark:text-slate-400 text-right">Meminjam</th>
-                    <th className="p-4 font-medium text-gray-600 dark:text-slate-400 text-right">Saldo</th>
-                    <th className="p-4 font-medium text-gray-600 dark:text-slate-400 text-center">Aksi</th>
+              <table className="w-full text-left border-collapse relative">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-slate-50 dark:bg-[#111318] border-b border-slate-100 dark:border-[#2A2D35] text-sm">
+                    <th className="p-4 font-medium text-slate-600 dark:text-slate-400">Tanggal Transaksi</th>
+                    <th className="p-4 font-medium text-slate-600 dark:text-slate-400">Tanggal Deposit</th>
+                    {selectedKas === 'kasSetor' && <th className="p-4 font-medium text-slate-600 dark:text-slate-400">Kampus</th>}
+                    <th className="p-4 font-medium text-slate-600 dark:text-slate-400">Keterangan</th>
+                    <th className="p-4 font-medium text-slate-600 dark:text-slate-400 text-right">Dana Masuk</th>
+                    <th className="p-4 font-medium text-slate-600 dark:text-slate-400 text-right">Dipakai</th>
+                    <th className="p-4 font-medium text-slate-600 dark:text-slate-400 text-right">Dipinjamkan</th>
+                    <th className="p-4 font-medium text-slate-600 dark:text-slate-400 text-right">Meminjam</th>
+                    <th className="p-4 font-medium text-slate-600 dark:text-slate-400 text-right">Saldo</th>
+                    <th className="p-4 font-medium text-slate-600 dark:text-slate-400 text-center">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 text-sm">
+                <tbody className="divide-y divide-slate-100 dark:divide-[#2A2D35] text-sm">
                   {entriesWithBalance.reverse().map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50 dark:bg-slate-800/50">
-                      <td className="p-4 whitespace-nowrap">{item.date}</td>
-                      <td className="p-4 whitespace-nowrap">{item.depositDate || '-'}</td>
-                      {selectedKas === 'kasSetor' && <td className="p-4 whitespace-nowrap">{item.kampus || '-'}</td>}
-                      <td className="p-4">{item.notes}</td>
-                      <td className="p-4 text-right text-green-600">{item.inAmount > 0 ? formatCurrency(item.inAmount) : '-'}</td>
-                      <td className="p-4 text-right text-red-600">{item.outAmount > 0 ? formatCurrency(item.outAmount) : '-'}</td>
-                      <td className="p-4 text-right text-orange-600">{item.loanedOutAmount > 0 ? formatCurrency(item.loanedOutAmount) : '-'}</td>
-                      <td className="p-4 text-right text-blue-600">{item.borrowedAmount > 0 ? formatCurrency(item.borrowedAmount) : '-'}</td>
-                      <td className="p-4 text-right font-medium text-gray-900 dark:text-white">{formatCurrency(item.balance)}</td>
+                    <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-[#111318] transition-colors bg-white dark:bg-[#1A1C23]">
+                      <td className="p-4 whitespace-nowrap text-slate-900 dark:text-white">{item.date}</td>
+                      <td className="p-4 whitespace-nowrap text-slate-900 dark:text-white">{item.depositDate || '-'}</td>
+                      {selectedKas === 'kasSetor' && <td className="p-4 whitespace-nowrap text-slate-900 dark:text-white">{item.kampus || '-'}</td>}
+                      <td className="p-4 text-slate-900 dark:text-white">{item.notes}</td>
+                      <td className="p-4 text-right text-emerald-600 dark:text-emerald-400">{item.inAmount > 0 ? formatCurrency(item.inAmount) : '-'}</td>
+                      <td className="p-4 text-right text-rose-600 dark:text-rose-400">{item.outAmount > 0 ? formatCurrency(item.outAmount) : '-'}</td>
+                      <td className="p-4 text-right text-amber-600 dark:text-amber-400">{item.loanedOutAmount > 0 ? formatCurrency(item.loanedOutAmount) : '-'}</td>
+                      <td className="p-4 text-right text-blue-600 dark:text-blue-400">{item.borrowedAmount > 0 ? formatCurrency(item.borrowedAmount) : '-'}</td>
+                      <td className="p-4 text-right font-medium text-slate-900 dark:text-white">{formatCurrency(item.balance)}</td>
                       <td className="p-4 text-center">
                         {!item.referenceId && (
                           <div className="flex justify-center gap-2">
@@ -734,7 +777,7 @@ export default function InternalFinance() {
   ].filter(d => d.value > 0);
 
   const recentTransactions = [...kasLedger]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a, b) => parseDateSafe(b.date).getTime() - parseDateSafe(a.date).getTime())
     .slice(0, 5);
 
   return (
@@ -839,10 +882,10 @@ export default function InternalFinance() {
               </div>
             </div>
             
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 flex flex-col justify-between">
+            <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-[#2A2D35] flex flex-col justify-between">
               <div>
-                <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Dialokasikan</h3>
-                <p className="text-2xl font-bold text-blue-600 mt-2 tabular-nums">
+                <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Dialokasikan</h3>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-2 tabular-nums">
                   {formatCurrency(totalDialokasikan)}
                 </p>
               </div>
@@ -860,17 +903,17 @@ export default function InternalFinance() {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 flex flex-col justify-between">
+            <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-[#2A2D35] flex flex-col justify-between">
               <div>
-                <h3 className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Dana Keluar</h3>
-                <p className="text-2xl font-bold text-red-600 mt-2 tabular-nums">
+                <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Dana Keluar</h3>
+                <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-2 tabular-nums">
                   {formatCurrency(totalDanaKeluar)}
                 </p>
               </div>
               <div className="mt-4 flex items-end h-24 space-x-1">
                 {/* Fake mini bar chart for visual effect */}
                 {[40, 70, 45, 90, 65, 85, 60].map((h, i) => (
-                  <div key={i} className="bg-red-100 w-full rounded-t-sm" style={{ height: `${h}%` }}></div>
+                  <div key={i} className="bg-rose-100 dark:bg-rose-900/30 w-full rounded-t-sm" style={{ height: `${h}%` }}></div>
                 ))}
               </div>
             </div>
@@ -907,13 +950,13 @@ export default function InternalFinance() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Recent Activity Timeline */}
-            <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-              <div className="p-6 border-b border-gray-200 dark:border-slate-700">
-                <h3 className="font-semibold text-lg text-gray-900 dark:text-white">Aktivitas Terkini</h3>
+            <div className="lg:col-span-1 bg-white dark:bg-[#1A1C23] rounded-2xl shadow-sm border border-slate-100 dark:border-[#2A2D35] overflow-hidden">
+              <div className="p-6 border-b border-slate-100 dark:border-[#2A2D35]">
+                <h3 className="font-semibold text-lg text-slate-900 dark:text-white">Aktivitas Terkini</h3>
               </div>
               <div className="p-6 space-y-6">
                 {recentTransactions.length === 0 ? (
-                  <p className="text-center text-gray-500 dark:text-slate-400 text-sm">Belum ada aktivitas.</p>
+                  <p className="text-center text-slate-500 dark:text-slate-400 text-sm">Belum ada aktivitas.</p>
                 ) : (
                   recentTransactions.map((trx, idx) => {
                     const isIncome = trx.inAmount > 0 || trx.borrowedAmount > 0;
@@ -922,13 +965,13 @@ export default function InternalFinance() {
                     
                     return (
                       <div key={idx} className="flex gap-4">
-                        <div className={`mt-1 p-2 rounded-full h-8 w-8 flex items-center justify-center shrink-0 ${isIncome ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                        <div className={`mt-1 p-2 rounded-full h-8 w-8 flex items-center justify-center shrink-0 ${isIncome ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'}`}>
                           {isIncome ? <ArrowDownRight size={16} /> : <ArrowUpRight size={16} />}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{trx.notes}</p>
-                          <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{kasName} • {new Date(trx.date).toLocaleDateString('id-ID')}</p>
-                          <p className={`text-sm font-bold mt-1 tabular-nums ${isIncome ? 'text-green-600' : 'text-red-600'}`}>
+                          <p className="text-sm font-medium text-slate-900 dark:text-white">{trx.notes}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{kasName} • {formatDateSafe(trx.date)}</p>
+                          <p className={`text-sm font-bold mt-1 tabular-nums ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                             {isIncome ? '+' : '-'}{formatCurrency(amount)}
                           </p>
                         </div>
@@ -940,8 +983,8 @@ export default function InternalFinance() {
             </div>
 
             {/* Pinjaman Antar Kas */}
-            <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-              <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
+            <div className="lg:col-span-2 bg-white dark:bg-[#1A1C23] rounded-2xl shadow-sm border border-slate-100 dark:border-[#2A2D35] overflow-hidden">
+              <div className="p-6 border-b border-slate-100 dark:border-[#2A2D35] flex justify-between items-center">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white">Pinjaman Antar Kas</h2>
                 </div>
@@ -1058,9 +1101,9 @@ export default function InternalFinance() {
           setIsPaymentModalOpen(true);
         }} />
       ) : activeTab === 'allocations' ? (
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center">
-            <h3 className="font-semibold text-lg">Riwayat Alokasi Dana Harian</h3>
+        <div className="bg-white dark:bg-[#1A1C23] rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35] overflow-hidden">
+          <div className="p-6 border-b border-slate-100 dark:border-[#2A2D35] flex justify-between items-center">
+            <h3 className="font-semibold text-lg text-slate-900 dark:text-white">Riwayat Alokasi Dana Harian</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -1590,7 +1633,7 @@ function PengaturanFinanceTab() {
 
   return (
     <div className="space-y-8">
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+      <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
         <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Daftar Sumber Dana</h3>
         <div className="flex gap-4 mb-6">
           <input 
@@ -1631,7 +1674,7 @@ function PengaturanFinanceTab() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+      <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
         <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Daftar Dompet Kas Internal</h3>
         <div className="flex gap-4 mb-6">
           <input 
@@ -1672,7 +1715,7 @@ function PengaturanFinanceTab() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+      <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
         <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Daftar Kampus (Kas Setor)</h3>
         <div className="flex gap-4 mb-6">
           <input 

@@ -29,6 +29,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const role = userData?.role || 'guest';
 
   // Define which roles can see which items
+  const canSeeAll = ['super_admin', 'admin'].includes(role);
   const canSeeFinance = ['super_admin', 'admin', 'finance_admin'].includes(role);
   const canSeeHR = ['super_admin', 'admin', 'hr_admin'].includes(role);
   const canSeeMarketing = ['super_admin', 'admin', 'marketing_admin'].includes(role);
@@ -39,7 +40,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       id: 'internal',
       label: 'Dashboard Internal',
       items: [
-        { to: '/', icon: Activity, label: 'Dashboard Internal', show: true },
+        { to: '/', icon: Activity, label: 'Dashboard Utama', show: canSeeAll },
         { to: '/internal/marketing', icon: Megaphone, label: 'Marketing', show: canSeeMarketing },
         { to: '/internal/finance', icon: Briefcase, label: 'Keuangan', show: canSeeFinance },
         { to: '/internal/admin', icon: FolderOpen, label: 'Administrasi', show: canSeeAcademic },
@@ -51,8 +52,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       id: 'laporan',
       label: 'Dashboard Laporan',
       items: [
-        { to: '/internal/reports', icon: FileText, label: 'Laporan Internal', show: true },
-        { to: '/internal/create', icon: PlusCircle, label: 'Buat Laporan Internal', show: true },
+        { to: '/internal/reports', icon: FileText, label: 'Laporan Internal', show: canSeeAll },
+        { to: '/internal/create', icon: PlusCircle, label: 'Buat Laporan Internal', show: canSeeAll },
         { to: '/internal/finance/reports', icon: FileText, label: 'Laporan Keuangan', show: canSeeFinance },
         { to: '/internal/marketing/reports', icon: FileText, label: 'Laporan Marketing', show: canSeeMarketing },
         { to: '/internal/admin/reports', icon: FileText, label: 'Laporan Administrasi', show: canSeeAcademic },
@@ -61,7 +62,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   ].filter(group => group.items.length > 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex font-sans text-slate-900 dark:text-slate-100 transition-colors">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#111318] flex font-sans text-slate-900 dark:text-slate-100 transition-colors">
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
@@ -77,10 +78,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-auto print:hidden flex flex-col shadow-2xl lg:shadow-none",
+        "fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-[#1A1C23] border-r border-slate-200 dark:border-slate-800/50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-auto print:hidden flex flex-col shadow-2xl lg:shadow-none",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="h-20 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-800 shrink-0">
+        <div className="h-20 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-800/50 shrink-0">
           <div className="flex items-center gap-3 font-bold text-2xl text-slate-800 dark:text-white tracking-tight">
             <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-blue-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
               T
@@ -117,10 +118,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         to={item.to}
                         className={({ isActive }) =>
                           cn(
-                            "flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                            "flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
                             isActive
-                              ? "bg-blue-50 dark:bg-blue-600/30 text-blue-700 dark:text-blue-400 shadow-sm shadow-blue-100 dark:shadow-blue-900/20"
-                              : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200"
+                              ? "bg-indigo-50 dark:bg-emerald-500/10 text-indigo-700 dark:text-emerald-400 border-indigo-200 dark:border-emerald-500/30"
+                              : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200 border-transparent"
                           )
                         }
                       >
@@ -176,8 +177,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors">
-        <header className="h-20 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 sm:px-8 shrink-0 sticky top-0 z-20 print:hidden">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50 dark:bg-[#111318] transition-colors">
+        <header className="h-20 bg-white/80 dark:bg-[#111318]/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/50 flex items-center justify-between px-4 sm:px-8 shrink-0 sticky top-0 z-20 print:hidden">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(true)}

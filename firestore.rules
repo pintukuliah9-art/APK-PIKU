@@ -36,9 +36,22 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAdmin() || (isOwner(userId) && (
         request.resource.data.role == 'guest' || 
-        (request.resource.data.role == 'super_admin' && request.auth.token.email == "kampus2stitbu@gmail.com")
+        (request.resource.data.role == 'super_admin' && request.auth.token.email == "kampus2stitbu@gmail.com") ||
+        (request.resource.data.role == 'admin' && request.auth.token.email == "admin@timpiku.com") ||
+        (request.resource.data.role == 'marketing_admin' && request.auth.token.email == "marketing@timpiku.com") ||
+        (request.resource.data.role == 'hr_admin' && request.auth.token.email == "sdm@timpiku.com") ||
+        (request.resource.data.role == 'finance_admin' && request.auth.token.email == "keuangan@timpiku.com") ||
+        (request.resource.data.role == 'academic_admin' && request.auth.token.email == "akademik@timpiku.com")
       ));
-      allow update: if isAdmin() || (isOwner(userId) && request.resource.data.role == resource.data.role);
+      allow update: if isAdmin() || (isOwner(userId) && (
+        request.resource.data.role == resource.data.role ||
+        (request.resource.data.role == 'super_admin' && request.auth.token.email == "kampus2stitbu@gmail.com") ||
+        (request.resource.data.role == 'admin' && request.auth.token.email == "admin@timpiku.com") ||
+        (request.resource.data.role == 'marketing_admin' && request.auth.token.email == "marketing@timpiku.com") ||
+        (request.resource.data.role == 'hr_admin' && request.auth.token.email == "sdm@timpiku.com") ||
+        (request.resource.data.role == 'finance_admin' && request.auth.token.email == "keuangan@timpiku.com") ||
+        (request.resource.data.role == 'academic_admin' && request.auth.token.email == "akademik@timpiku.com")
+      ));
       allow delete: if isAdmin();
     }
 

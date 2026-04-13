@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, signInWithRedirect, GoogleAuthProvider, signOut, signInWithEmailAndPassword } from 'firebase/auth';
+import { User, signInWithPopup, GoogleAuthProvider, signOut, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
@@ -44,16 +44,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const userDocRef = doc(db, 'users', firebaseUser.uid);
           const userDoc = await getDoc(userDocRef);
           
+          let role: UserRole = 'guest';
+          const email = firebaseUser.email || '';
+          
+          // Auto-assign roles based on email for default accounts
+          if (email === 'kampus2stitbu@gmail.com') role = 'super_admin';
+          else if (email === 'admin@timpiku.com') role = 'admin';
+          else if (email === 'marketing@timpiku.com') role = 'marketing_admin';
+          else if (email === 'sdm@timpiku.com') role = 'hr_admin';
+          else if (email === 'keuangan@timpiku.com') role = 'finance_admin';
+          else if (email === 'akademik@timpiku.com') role = 'academic_admin';
+          
           if (userDoc.exists()) {
-            setUserData(userDoc.data() as UserData);
+            const data = userDoc.data() as UserData;
+            // If it's a default account but role is wrong (e.g. guest), update it
+            if (role !== 'guest' && data.role !== role) {
+              const updatedData = { ...data, role };
+              await setDoc(userDocRef, updatedData, { merge: true });
+              setUserData(updatedData);
+            } else {
+              setUserData(data);
+            }
           } else {
             // Create new user document
-            // Default to super_admin for the specific email, otherwise guest
-            const isOwner = firebaseUser.email === 'kampus2stitbu@gmail.com';
             const newUserData: UserData = {
-              role: isOwner ? 'super_admin' : 'guest',
-              email: firebaseUser.email || '',
-              name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || '',
+              role,
+              email: email,
+              name: firebaseUser.displayName || email.split('@')[0] || '',
             };
             await setDoc(userDocRef, newUserData);
             setUserData(newUserData);
@@ -75,8 +92,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      // Use signInWithRedirect for better compatibility in iframes
-      await signInWithRedirect(auth, provider);
+      await signInWithPopup(auth, provider);
     } catch (error) {
       console.error('Login error:', error);
       throw error;

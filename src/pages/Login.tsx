@@ -82,7 +82,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-white sm:text-sm"
-                placeholder="admin@example.com"
+                placeholder="admin@timpiku.com"
               />
             </div>
           </div>
@@ -123,7 +123,7 @@ export default function Login() {
         <button
           onClick={handleGoogleLogin}
           type="button"
-          className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-medium rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800"
+          className="w-full flex items-center justify-center gap-3 py-2.5 px-4 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-medium rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 mb-6"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -145,6 +145,45 @@ export default function Login() {
           </svg>
           Masuk dengan Google
         </button>
+
+        <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 text-center">Login Cepat (Demo)</h3>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => { setEmail('admin@timpiku.com'); setPassword('password123'); }}
+              className="text-xs py-2 px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-slate-700 transition-colors"
+            >
+              Admin Umum
+            </button>
+            <button
+              onClick={() => { setEmail('marketing@timpiku.com'); setPassword('password123'); }}
+              className="text-xs py-2 px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-slate-700 transition-colors"
+            >
+              Marketing
+            </button>
+            <button
+              onClick={() => { setEmail('sdm@timpiku.com'); setPassword('password123'); }}
+              className="text-xs py-2 px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-slate-700 transition-colors"
+            >
+              SDM
+            </button>
+            <button
+              onClick={() => { setEmail('keuangan@timpiku.com'); setPassword('password123'); }}
+              className="text-xs py-2 px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-slate-700 transition-colors"
+            >
+              Keuangan
+            </button>
+            <button
+              onClick={() => { setEmail('akademik@timpiku.com'); setPassword('password123'); }}
+              className="text-xs py-2 px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-slate-700 transition-colors col-span-2"
+            >
+              Admin Akademik
+            </button>
+          </div>
+          <p className="text-[10px] text-slate-400 text-center mt-3">
+            Klik tombol di atas untuk mengisi email & password otomatis, lalu klik "Masuk".
+          </p>
+        </div>
 
         <div className="mt-8 text-center">
           <button 

@@ -115,8 +115,8 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
+          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
             <Mail size={20} className="text-blue-500" />
             Surat Masuk & Keluar
           </h3>
@@ -132,8 +132,8 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
+          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
             <Archive size={20} className="text-orange-500" />
             Inventaris Kantor
           </h3>
@@ -150,8 +150,8 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-        <div className="border-b border-gray-200 dark:border-slate-700">
+      <div className="bg-white dark:bg-[#1A1C23] rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35] overflow-hidden">
+        <div className="border-b border-slate-100 dark:border-[#2A2D35]">
           <nav className="flex -mb-px overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveTab('surat')}
@@ -559,7 +559,7 @@ function PengaturanAdminTab() {
 
   return (
     <div className="space-y-8">
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+      <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
         <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Pengaturan Penandatangan Dokumen</h3>
         <div className="space-y-4 max-w-md">
           <div>

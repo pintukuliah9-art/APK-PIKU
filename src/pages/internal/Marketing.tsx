@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Users, Target, TrendingUp, Calendar, DollarSign, 
-  BarChart2, PieChart, UserCheck, Plus, ChevronDown, ChevronUp, Trash2, Edit
+  BarChart2, PieChart, UserCheck, Plus, ChevronDown, ChevronUp, Trash2, Edit, GraduationCap
 } from 'lucide-react';
 import { formatCurrency, formatNumberInput, parseNumberInput } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -10,9 +10,12 @@ import {
   LineChart, Line, Legend, PieChart as RechartsPieChart, Pie, Cell 
 } from 'recharts';
 import { useMarketingStore } from '../../hooks/useMarketingStore';
+import { useAppStore } from '../../hooks/useAppStore';
 import { v4 as uuidv4 } from 'uuid';
 import { LaporanHarianAds, LaporanHarianCS, DataProspekCRM } from '../../types/app';
 import { ConfirmModal } from '../../components/ConfirmModal';
+
+import { InputMahasiswaForm } from '../../components/marketing/InputMahasiswaForm';
 
 export default function MarketingDashboard() {
   const { 
@@ -23,6 +26,8 @@ export default function MarketingDashboard() {
     init
   } = useMarketingStore();
 
+  const { studentAdministrations } = useAppStore();
+
   useEffect(() => {
     init();
     return () => {
@@ -30,7 +35,8 @@ export default function MarketingDashboard() {
     };
   }, [init]);
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'laporanAds' | 'laporanCS' | 'prospek' | 'pengaturan'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'laporanAds' | 'laporanCS' | 'prospek' | 'inputMahasiswa' | 'pengaturan'>('dashboard');
+  const [expandedKoor, setExpandedKoor] = useState<string | null>(null);
 
   // Confirm Modal State
   const [confirmModal, setConfirmModal] = useState<{
@@ -59,6 +65,125 @@ export default function MarketingDashboard() {
   const totalProspek = prospekCRM.length;
   const conversionRate = totalLeads > 0 ? (totalClosing / totalLeads) * 100 : 0;
 
+  // Total Closing Pintu Kuliah (dari data mahasiswa)
+  const totalClosingPintuKuliah = studentAdministrations.length;
+  
+  const getClosingCategory = (student: typeof studentAdministrations[0]) => {
+    if (student.kategoriClosing === 'Internal' || student.kategoriClosing === 'Eksternal') {
+      return student.kategoriClosing === 'Internal' ? 'Internal' : 'Koordinator';
+    }
+    // Fallback for old data
+    const koor = student.koordinator;
+    if (!koor) return 'Internal';
+    const k = koor.toLowerCase();
+    if (k.includes('internal br jaya') || k.includes('internal br.jaya') || k.includes('tanpa koordinator')) {
+      return 'Internal';
+    }
+    const isTeamMember = timMarketing.some(t => t.namaLengkap.toLowerCase() === k);
+    if (isTeamMember) {
+      return 'Internal';
+    }
+    return 'Koordinator';
+  };
+
+  const totalClosingInternal = studentAdministrations.filter(s => getClosingCategory(s) === 'Internal').length;
+  const totalClosingKoordinator = studentAdministrations.filter(s => getClosingCategory(s) === 'Koordinator').length;
+
+  // Internal Performance
+  const internalPerformance = useMemo(() => {
+    const data: Record<string, typeof studentAdministrations> = {};
+    studentAdministrations.forEach(student => {
+      if (getClosingCategory(student) === 'Internal') {
+        let koor = student.koordinator || 'Internal BR Jaya';
+        const k = koor.toLowerCase();
+        if (k.includes('internal br jaya') || k.includes('internal br.jaya') || k.includes('tanpa koordinator')) {
+          koor = 'Internal BR Jaya';
+        }
+        if (!data[koor]) data[koor] = [];
+        data[koor].push(student);
+      }
+    });
+    return Object.entries(data).sort((a, b) => b[1].length - a[1].length);
+  }, [studentAdministrations, timMarketing]);
+
+  // Koordinator Performance
+  const externalPerformance = useMemo(() => {
+    const data: Record<string, typeof studentAdministrations> = {};
+    studentAdministrations.forEach(student => {
+      if (getClosingCategory(student) === 'Koordinator') {
+        const koor = student.koordinator || 'Unknown Koordinator';
+        if (!data[koor]) data[koor] = [];
+        data[koor].push(student);
+      }
+    });
+    return Object.entries(data).sort((a, b) => b[1].length - a[1].length);
+  }, [studentAdministrations, timMarketing]);
+
+  const StatCard = ({ title, value, subtext, icon: Icon, theme = 'blue', isTopRow = false }: any) => {
+    const themes = {
+      blue: {
+        iconContainer: 'bg-blue-500 dark:bg-blue-500/20 border-transparent dark:border-blue-500/30',
+        icon: 'text-white dark:text-blue-400',
+        rightBlock: 'bg-blue-50 dark:bg-blue-500/10',
+        rightIcon: 'text-blue-200 dark:text-blue-500/20',
+      },
+      green: {
+        iconContainer: 'bg-emerald-500 dark:bg-emerald-500/20 border-transparent dark:border-emerald-500/30',
+        icon: 'text-white dark:text-emerald-400',
+        rightBlock: 'bg-emerald-50 dark:bg-emerald-500/10',
+        rightIcon: 'text-emerald-200 dark:text-emerald-500/20',
+      },
+      amber: {
+        iconContainer: 'bg-amber-500 dark:bg-amber-500/20 border-transparent dark:border-amber-500/30',
+        icon: 'text-white dark:text-amber-400',
+        rightBlock: 'bg-amber-50 dark:bg-amber-500/10',
+        rightIcon: 'text-amber-200 dark:text-amber-500/20',
+      },
+      purple: {
+        iconContainer: 'bg-purple-500 dark:bg-purple-500/20 border-transparent dark:border-purple-500/30',
+        icon: 'text-white dark:text-purple-400',
+        rightBlock: 'bg-purple-50 dark:bg-purple-500/10',
+        rightIcon: 'text-purple-200 dark:text-purple-500/20',
+      },
+      red: {
+        iconContainer: 'bg-rose-500 dark:bg-rose-500/20 border-transparent dark:border-rose-500/30',
+        icon: 'text-white dark:text-rose-400',
+        rightBlock: 'bg-rose-50 dark:bg-rose-500/10',
+        rightIcon: 'text-rose-200 dark:text-rose-500/20',
+      }
+    };
+
+    const t = themes[theme as keyof typeof themes] || themes.blue;
+
+    return (
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ y: -5 }}
+        className="bg-white dark:bg-[#1A1C23] rounded-2xl shadow-sm border border-slate-100 dark:border-[#2A2D35] relative overflow-hidden group flex"
+      >
+        {/* Left Content */}
+        <div className="p-6 flex-1 relative z-10">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${t.iconContainer} mb-4`}>
+            <Icon size={24} className={t.icon} />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">{title}</p>
+            <h3 className={`text-2xl lg:text-3xl font-bold tracking-tight ${isTopRow ? 'text-slate-900 dark:text-yellow-500' : 'text-slate-900 dark:text-white'}`}>
+              {value}
+            </h3>
+            {subtext && <div className="text-xs text-slate-500 dark:text-slate-500 mt-2">{subtext}</div>}
+          </div>
+        </div>
+        
+        {/* Right Block */}
+        <div className={`w-1/3 absolute right-0 top-0 bottom-0 ${t.rightBlock} flex items-center justify-center overflow-hidden`}>
+          <Icon size={100} className={`absolute -right-4 ${t.rightIcon} transform group-hover:scale-110 transition-transform duration-300`} />
+        </div>
+      </motion.div>
+    );
+  };
+
   // Chart Data
   const trendData = useMemo(() => {
     const dates = Array.from(new Set([...laporanAds.map(l => l.tanggal), ...laporanCS.map(l => l.tanggal)])).sort();
@@ -74,35 +199,6 @@ export default function MarketingDashboard() {
     { name: 'RPL', value: totalClosingRPL, color: '#10B981' },
     { name: 'Akselerasi', value: totalClosingAkselerasi, color: '#F59E0B' },
   ];
-
-  // Ad Account Performance
-  const adAccountPerformanceData = useMemo(() => {
-    const data: Record<string, { spend: number, leads: number, clicks: number, impresi: number, jangkauan: number }> = {};
-    laporanAds.forEach(r => {
-      const akun = akunAds.find(a => a.id === r.idAkun)?.namaAkun || 'Unknown';
-      if (!data[akun]) data[akun] = { spend: 0, leads: 0, clicks: 0, impresi: 0, jangkauan: 0 };
-      data[akun].spend += r.spend;
-      data[akun].leads += r.leadsDihasilkan;
-      data[akun].clicks += r.linkClicks;
-      data[akun].impresi += r.impresi;
-      data[akun].jangkauan += r.jangkauan;
-    });
-    return Object.entries(data).sort((a, b) => b[1].leads - a[1].leads);
-  }, [laporanAds, akunAds]);
-
-  // Admin Performance
-  const adminPerformanceData = useMemo(() => {
-    const data: Record<string, { chat: number, closing: number, responTimeTotal: number, responTimeCount: number }> = {};
-    laporanCS.forEach(r => {
-      const admin = timMarketing.find(t => t.id === r.idKaryawan)?.namaLengkap || 'Unknown';
-      if (!data[admin]) data[admin] = { chat: 0, closing: 0, responTimeTotal: 0, responTimeCount: 0 };
-      data[admin].chat += r.chatMerespon;
-      data[admin].closing += (r.closingReguler + r.closingRPL + r.closingAkselerasi);
-      data[admin].responTimeTotal += r.responTime;
-      data[admin].responTimeCount += 1;
-    });
-    return Object.entries(data).sort((a, b) => b[1].closing - a[1].closing);
-  }, [laporanCS, timMarketing]);
 
   return (
     <div className="space-y-8 pb-20">
@@ -158,6 +254,16 @@ export default function MarketingDashboard() {
               Prospek CRM
             </button>
             <button
+              onClick={() => setActiveTab('inputMahasiswa')}
+              className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
+                activeTab === 'inputMahasiswa'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'
+              }`}
+            >
+              Input Closing Mahasiswa
+            </button>
+            <button
               onClick={() => setActiveTab('pengaturan')}
               className={`py-4 px-6 font-medium text-sm border-b-2 whitespace-nowrap ${
                 activeTab === 'pengaturan'
@@ -174,66 +280,52 @@ export default function MarketingDashboard() {
       {activeTab === 'dashboard' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Leads (FB Ads)</p>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{totalLeads}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <StatCard 
+              title="Total Leads (FB Ads)" 
+              value={totalLeads} 
+              subtext={<><span className="text-emerald-600 dark:text-emerald-400 font-medium">{(totalLeads / (totalClicks || 1) * 100).toFixed(1)}%</span> Click-to-Lead Ratio</>}
+              icon={Target}
+              theme="blue"
+              isTopRow={true}
+            />
+            <StatCard 
+              title="Ad Spend (Nominal)" 
+              value={formatCurrency(totalSpend)} 
+              subtext={<>Cost Per Lead: <span className="font-medium text-slate-900 dark:text-white">{formatCurrency(costPerLead)}</span></>}
+              icon={DollarSign}
+              theme="red"
+              isTopRow={true}
+            />
+            <StatCard 
+              title="Total Closing (CS)" 
+              value={totalClosing} 
+              subtext={<>Conversion Rate: <span className="font-medium text-emerald-600 dark:text-emerald-400">{conversionRate.toFixed(1)}%</span></>}
+              icon={UserCheck}
+              theme="green"
+              isTopRow={true}
+            />
+            <StatCard 
+              title="Total Prospek CRM" 
+              value={totalProspek} 
+              subtext="Total data prospek aktif"
+              icon={Users}
+              theme="purple"
+              isTopRow={true}
+            />
+            <StatCard 
+              title="Total Closing Pintu Kuliah" 
+              value={totalClosingPintuKuliah} 
+              subtext={
+                <div className="flex flex-col gap-1">
+                  <span className="font-medium text-indigo-600 dark:text-indigo-400">Internal (CS/Marketing): {totalClosingInternal}</span>
+                  <span className="font-medium text-purple-600 dark:text-purple-400">Koordinator (Mitra): {totalClosingKoordinator}</span>
                 </div>
-                <div className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg">
-                  <Target size={20} />
-                </div>
-              </div>
-              <div className="text-xs text-gray-500 dark:text-slate-400">
-                <span className="text-green-600 font-medium">{(totalLeads / (totalClicks || 1) * 100).toFixed(1)}%</span> Click-to-Lead Ratio
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Ad Spend (Nominal)</p>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{formatCurrency(totalSpend)}</h3>
-                </div>
-                <div className="p-2 bg-red-50 text-red-600 rounded-lg">
-                  <DollarSign size={20} />
-                </div>
-              </div>
-              <div className="text-xs text-gray-500 dark:text-slate-400">
-                Cost Per Lead (CPL): <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(costPerLead)}</span>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Closing</p>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{totalClosing}</h3>
-                </div>
-                <div className="p-2 bg-green-50 text-green-600 rounded-lg">
-                  <UserCheck size={20} />
-                </div>
-              </div>
-              <div className="text-xs text-gray-500 dark:text-slate-400">
-                Conversion Rate: <span className="font-medium text-green-600">{conversionRate.toFixed(1)}%</span>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Prospek CRM</p>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{totalProspek}</h3>
-                </div>
-                <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
-                  <Users size={20} />
-                </div>
-              </div>
-              <div className="text-xs text-gray-500 dark:text-slate-400">
-                Total data prospek aktif
-              </div>
-            </div>
+              }
+              icon={GraduationCap}
+              theme="amber"
+              isTopRow={true}
+            />
           </div>
 
           {/* Charts */}
@@ -301,32 +393,73 @@ export default function MarketingDashboard() {
 
           {/* Tables */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-              <div className="p-6 border-b border-gray-200 dark:border-slate-700">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Performa Akun Iklan</h3>
+            <div className="lg:col-span-2 bg-white dark:bg-[#1A1C23] rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35] overflow-hidden">
+              <div className="p-6 border-b border-slate-100 dark:border-[#2A2D35]">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Performa Internal (Pintu Kuliah)</h3>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-gray-50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-700">
+              <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+                <table className="w-full text-left text-sm relative">
+                  <thead className="bg-slate-50 dark:bg-[#111318] border-b border-slate-100 dark:border-[#2A2D35] sticky top-0 z-10">
                     <tr>
-                      <th className="px-6 py-4 font-semibold text-gray-900 dark:text-white">Akun Iklan</th>
-                      <th className="px-6 py-4 font-semibold text-gray-900 dark:text-white">Leads</th>
-                      <th className="px-6 py-4 font-semibold text-gray-900 dark:text-white">CPR</th>
-                      <th className="px-6 py-4 font-semibold text-gray-900 dark:text-white">Spend</th>
+                      <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white">Nama Internal / CS Admin</th>
+                      <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white">Total Closing</th>
+                      <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white text-right">Aksi</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {adAccountPerformanceData.map(([name, data]) => (
-                      <tr key={name} className="hover:bg-gray-50 dark:bg-slate-800/50">
-                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{name}</td>
-                        <td className="px-6 py-4 text-gray-600 dark:text-slate-400">{data.leads}</td>
-                        <td className="px-6 py-4 text-gray-600 dark:text-slate-400">{formatCurrency(data.leads > 0 ? data.spend / data.leads : 0)}</td>
-                        <td className="px-6 py-4 text-gray-600 dark:text-slate-400">{formatCurrency(data.spend)}</td>
-                      </tr>
+                  <tbody className="divide-y divide-slate-100 dark:divide-[#2A2D35]">
+                    {internalPerformance.map(([name, students]) => (
+                      <React.Fragment key={name}>
+                        <tr className="hover:bg-slate-50 dark:hover:bg-[#111318] transition-colors">
+                          <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{name}</td>
+                          <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-300">
+                              {students.length} Mahasiswa
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button 
+                              onClick={() => setExpandedKoor(expandedKoor === name ? null : name)}
+                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-sm flex items-center justify-end gap-1 ml-auto"
+                            >
+                              {expandedKoor === name ? (
+                                <><ChevronUp size={16} /> Tutup Detail</>
+                              ) : (
+                                <><ChevronDown size={16} /> Lihat Detail</>
+                              )}
+                            </button>
+                          </td>
+                        </tr>
+                        {expandedKoor === name && (
+                          <tr>
+                            <td colSpan={3} className="px-6 py-4 bg-slate-50 dark:bg-[#111318]">
+                              <div className="rounded-lg border border-slate-200 dark:border-[#2A2D35] overflow-hidden">
+                                <table className="w-full text-left text-xs">
+                                  <thead className="bg-slate-100 dark:bg-[#1A1C23]">
+                                    <tr>
+                                      <th className="px-4 py-2 font-medium text-slate-700 dark:text-slate-300">Nama Mahasiswa</th>
+                                      <th className="px-4 py-2 font-medium text-slate-700 dark:text-slate-300">Program</th>
+                                      <th className="px-4 py-2 font-medium text-slate-700 dark:text-slate-300">Tanggal Daftar</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-200 dark:divide-[#2A2D35]">
+                                    {students.map(s => (
+                                      <tr key={s.id} className="bg-white dark:bg-[#1A1C23]">
+                                        <td className="px-4 py-2 text-slate-900 dark:text-white font-medium">{s.namaLengkap}</td>
+                                        <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{s.program} - {s.programStudi}</td>
+                                        <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{s.tanggalDaftar}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     ))}
-                    {adAccountPerformanceData.length === 0 && (
+                    {internalPerformance.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">Belum ada data performa iklan.</td>
+                        <td colSpan={3} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Belum ada data closing dari internal.</td>
                       </tr>
                     )}
                   </tbody>
@@ -334,32 +467,73 @@ export default function MarketingDashboard() {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-              <div className="p-6 border-b border-gray-200 dark:border-slate-700">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Performa CS Admin</h3>
+            <div className="lg:col-span-2 bg-white dark:bg-[#1A1C23] rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35] overflow-hidden">
+              <div className="p-6 border-b border-slate-100 dark:border-[#2A2D35]">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Performa Koordinator Eksternal (Pintu Kuliah)</h3>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-gray-50 dark:bg-slate-800/50 border-b border-gray-200 dark:border-slate-700">
+              <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+                <table className="w-full text-left text-sm relative">
+                  <thead className="bg-slate-50 dark:bg-[#111318] border-b border-slate-100 dark:border-[#2A2D35] sticky top-0 z-10">
                     <tr>
-                      <th className="px-6 py-4 font-semibold text-gray-900 dark:text-white">Nama Admin</th>
-                      <th className="px-6 py-4 font-semibold text-gray-900 dark:text-white">Chat</th>
-                      <th className="px-6 py-4 font-semibold text-gray-900 dark:text-white">Closing</th>
-                      <th className="px-6 py-4 font-semibold text-gray-900 dark:text-white">Rate</th>
+                      <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white">Nama Koordinator</th>
+                      <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white">Total Closing</th>
+                      <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white text-right">Aksi</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {adminPerformanceData.map(([name, data]) => (
-                      <tr key={name} className="hover:bg-gray-50 dark:bg-slate-800/50">
-                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{name}</td>
-                        <td className="px-6 py-4 text-gray-600 dark:text-slate-400">{data.chat}</td>
-                        <td className="px-6 py-4 text-gray-600 dark:text-slate-400">{data.closing}</td>
-                        <td className="px-6 py-4 text-gray-600 dark:text-slate-400">{(data.chat > 0 ? (data.closing / data.chat) * 100 : 0).toFixed(1)}%</td>
-                      </tr>
+                  <tbody className="divide-y divide-slate-100 dark:divide-[#2A2D35]">
+                    {externalPerformance.map(([name, students]) => (
+                      <React.Fragment key={name}>
+                        <tr className="hover:bg-slate-50 dark:hover:bg-[#111318] transition-colors">
+                          <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{name}</td>
+                          <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300">
+                              {students.length} Mahasiswa
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button 
+                              onClick={() => setExpandedKoor(expandedKoor === name ? null : name)}
+                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-sm flex items-center justify-end gap-1 ml-auto"
+                            >
+                              {expandedKoor === name ? (
+                                <><ChevronUp size={16} /> Tutup Detail</>
+                              ) : (
+                                <><ChevronDown size={16} /> Lihat Detail</>
+                              )}
+                            </button>
+                          </td>
+                        </tr>
+                        {expandedKoor === name && (
+                          <tr>
+                            <td colSpan={3} className="px-6 py-4 bg-slate-50 dark:bg-[#111318]">
+                              <div className="rounded-lg border border-slate-200 dark:border-[#2A2D35] overflow-hidden">
+                                <table className="w-full text-left text-xs">
+                                  <thead className="bg-slate-100 dark:bg-[#1A1C23]">
+                                    <tr>
+                                      <th className="px-4 py-2 font-medium text-slate-700 dark:text-slate-300">Nama Mahasiswa</th>
+                                      <th className="px-4 py-2 font-medium text-slate-700 dark:text-slate-300">Program</th>
+                                      <th className="px-4 py-2 font-medium text-slate-700 dark:text-slate-300">Tanggal Daftar</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-200 dark:divide-[#2A2D35]">
+                                    {students.map(s => (
+                                      <tr key={s.id} className="bg-white dark:bg-[#1A1C23]">
+                                        <td className="px-4 py-2 text-slate-900 dark:text-white font-medium">{s.namaLengkap}</td>
+                                        <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{s.program} - {s.programStudi}</td>
+                                        <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{s.tanggalDaftar}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     ))}
-                    {adminPerformanceData.length === 0 && (
+                    {externalPerformance.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">Belum ada data performa admin.</td>
+                        <td colSpan={3} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Belum ada data closing dari koordinator eksternal.</td>
                       </tr>
                     )}
                   </tbody>
@@ -373,6 +547,7 @@ export default function MarketingDashboard() {
       {activeTab === 'laporanAds' && <LaporanAdsTab />}
       {activeTab === 'laporanCS' && <LaporanCSTab />}
       {activeTab === 'prospek' && <ProspekCRMTab />}
+      {activeTab === 'inputMahasiswa' && <InputMahasiswaForm />}
       {activeTab === 'pengaturan' && <PengaturanMarketingTab />}
 
     </div>

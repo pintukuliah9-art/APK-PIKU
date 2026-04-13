@@ -33,6 +33,28 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode,
   return <Navigate to="/" replace />;
 }
 
+function RoleBasedRedirect() {
+  const { userData } = useAuth();
+  const role = userData?.role || 'guest';
+
+  switch (role) {
+    case 'marketing_admin':
+      return <Navigate to="/internal/marketing" replace />;
+    case 'hr_admin':
+      return <Navigate to="/internal/hr" replace />;
+    case 'finance_admin':
+      return <Navigate to="/internal/finance" replace />;
+    case 'academic_admin':
+      return <Navigate to="/internal/admin" replace />;
+    case 'super_admin':
+    case 'admin':
+      return <InternalDashboard />;
+    default:
+      // Fallback for guest or unknown roles
+      return <div className="p-8 text-center">Akses ditolak atau role tidak dikenali.</div>;
+  }
+}
+
 function AppRoutes() {
   const { user, loading } = useAuth();
 
@@ -51,7 +73,7 @@ function AppRoutes() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<InternalDashboard />} />
+        <Route path="/" element={<RoleBasedRedirect />} />
         
         {/* Internal Tim */}
         <Route path="/internal/marketing" element={<ProtectedRoute allowedRoles={['marketing_admin', 'admin']}><MarketingDashboard /></ProtectedRoute>} />

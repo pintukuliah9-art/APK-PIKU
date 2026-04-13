@@ -27,10 +27,12 @@ import {
 } from 'lucide-react';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import * as XLSX from 'xlsx';
+import { formatDateSafe } from '../../lib/utils';
 
 const initialFormData: Omit<StudentAdministration, 'id'> = {
   tanggalDaftar: format(new Date(), 'dd MMMM yyyy', { locale: id }),
   jalurInput: '',
+  kategoriClosing: 'Internal',
   koordinator: '',
   program: '',
   perguruanTinggi: '',
@@ -83,6 +85,7 @@ const initialFormData: Omit<StudentAdministration, 'id'> = {
 const AVAILABLE_EXPORT_COLUMNS = [
   { id: 'tanggalDaftar', label: 'TANGGAL DAFTAR' },
   { id: 'jalurInput', label: 'JALUR INPUT' },
+  { id: 'kategoriClosing', label: 'KATEGORI CLOSING' },
   { id: 'koordinator', label: 'KOORDINATOR' },
   { id: 'program', label: 'PROGRAM' },
   { id: 'perguruanTinggi', label: 'PERGURUAN TINGGI' },
@@ -179,6 +182,7 @@ export default function StudentAdministrationPage() {
 
   const AVAILABLE_FILTERS = useMemo(() => [
     { id: 'jalurInput', label: 'Jalur Input', options: settings.adminOptions?.JALUR_INPUT || [] },
+    { id: 'kategoriClosing', label: 'Kategori Closing', options: ['Internal', 'Eksternal'] },
     { id: 'koordinator', label: 'Koordinator', options: settings.coordinators || [] },
     { id: 'program', label: 'Program', options: settings.adminOptions?.PROGRAM || [] },
     { id: 'perguruanTinggi', label: 'Perguruan Tinggi', options: [...(settings.campusesReguler||[]), ...(settings.campusesRPL||[]), ...(settings.campusesAkselerasi||[])] },
@@ -235,57 +239,112 @@ export default function StudentAdministrationPage() {
         const data = XLSX.utils.sheet_to_json(ws);
 
         let importedCount = 0;
-        for (const row of data as any[]) {
+        for (const rawRow of data as any[]) {
+          // Normalize row keys to ignore case, spaces, and special characters
+          const row: any = {};
+          for (const key in rawRow) {
+            const normalizedKey = key.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            row[normalizedKey] = rawRow[key];
+          }
+
+          const getVal = (...keys: string[]) => {
+            // First try exact match
+            for (const k of keys) {
+              const normK = k.toUpperCase().replace(/[^A-Z0-9]/g, '');
+              if (row[normK] !== undefined && row[normK] !== null && row[normK] !== '') return row[normK];
+            }
+            // Then try partial match (if the excel column contains the keyword)
+            for (const k of keys) {
+              const normK = k.toUpperCase().replace(/[^A-Z0-9]/g, '');
+              const foundKey = Object.keys(row).find(rk => rk.includes(normK));
+              if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && row[foundKey] !== '') return row[foundKey];
+            }
+            return '';
+          };
+
+          const parseExcelNumber = (val: any) => {
+            if (val === undefined || val === null || val === '') return 0;
+            if (typeof val === 'number') return val;
+            const parsed = parseInt(val.toString().replace(/[^0-9]/g, ''), 10);
+            return isNaN(parsed) ? 0 : parsed;
+          };
+
+          const parseExcelDate = (val: any) => {
+            if (!val) return '';
+            if (typeof val === 'number') {
+              // Excel dates are days since Dec 30, 1899
+              const date = new Date(Math.round((val - 25569) * 86400 * 1000));
+              return formatDateSafe(date.toISOString(), 'dd MMMM yyyy');
+            }
+            return String(val);
+          };
+
+          const normalizeFromOptions = (val: string, options?: string[]) => {
+            if (!val || !options) return val || '';
+            const upperVal = String(val).toUpperCase().trim();
+            const match = options.find(opt => opt.toUpperCase().trim() === upperVal);
+            return match || val;
+          };
+
+          const normalizeKategoriClosing = (val: string) => {
+            if (!val) return 'Internal';
+            const upperVal = String(val).toUpperCase().trim();
+            if (upperVal.includes('INTERNAL')) return 'Internal';
+            if (upperVal.includes('EKSTERNAL') || upperVal.includes('EXTERNAL')) return 'Eksternal';
+            return 'Internal';
+          };
+
           const newStudent: Omit<StudentAdministration, 'id'> = {
-            tanggalDaftar: row['TANGGAL'] || row['TANGGAL DAFTAR'] || format(new Date(), 'dd MMMM yyyy', { locale: id }),
-            jalurInput: row['JALUR INPUT'] || '',
-            koordinator: row['KOORDINATOR'] || '',
-            program: row['PROGRAM'] || '',
-            perguruanTinggi: row['PERGURUAN TINGGI'] || '',
-            programStudi: row['PROGRAM STUDI'] || '',
-            kloterInput: row['KLOTER INPUT'] || '',
-            periodePendaftaran: row['PERIODE PENDAFTARAN'] || '',
-            periodeKuliah: row['PERIODE KULIAH'] || '',
-            namaLengkap: row['NAMA LENGKAP'] || row['NAMA'] || '',
-            tempatLahir: row['TEMPAT LAHIR'] || '',
-            tanggalLahir: row['TANGGAL LAHIR'] || '',
-            jenisKelamin: row['JENIS KELAMIN'] || '',
-            agama: row['AGAMA'] || '',
-            nik: row['NIK']?.toString() || '',
-            namaIbu: row['NAMA IBU'] || '',
-            kelurahan: row['KELURAHAN'] || '',
-            kecamatan: row['KECAMATAN'] || '',
-            kabupatenKota: row['KABUPATEN/KOTA'] || row['KABUPATEN'] || '',
-            provinsi: row['PROVINSI'] || '',
-            email: row['EMAIL'] || '',
-            noHp: row['NO HP']?.toString() || row['WHATSAPP']?.toString() || '',
-            lulusSmaS1: row['LULUS SMA/S1'] || '',
-            lulusKuliah: row['LULUS KULIAH'] || '',
-            linkDoc: row['LINK DOC'] || '',
-            ketDokumen: row['KET DOKUMEN'] || row['KETERANGAN'] || '',
-            statusBerkas: row['STATUS BERKAS'] || '',
-            catatanMahasiswa: row['CATATAN MAHASISWA'] || row['CATATAN'] || '',
-            tanggalInput: format(new Date(), 'dd MMMM yyyy', { locale: id }),
-            statusData: row['STATUS DATA'] || '',
-            linkPddikti: row['LINK PDDIKTI'] || '',
-            linkPisn: row['LINK PISN'] || '',
-            nimNpm: row['NIM/NPM']?.toString() || row['NIM']?.toString() || row['NPM']?.toString() || '',
-            nomorIjazah: row['NOMOR IJAZAH']?.toString() || '',
-            tanggalMasuk: row['TANGGAL MASUK'] || '',
-            tanggalLulus: row['TANGGAL LULUS'] || '',
-            pasPhoto: row['PAS PHOTO'] || '',
-            judulSkripsi: row['JUDUL SKRIPSI'] || '',
-            banPt: row['BAN PT'] || '',
-            gelarAkademik: row['GELAR AKADEMIK'] || '',
-            ketRevisi: row['KET REVISI'] || '',
-            totalSetor: parseExcelNumber(row['TOTAL SETOR']),
-            statusTagihan: row['STATUS TAGIHAN'] || '',
-            totalTagih: parseExcelNumber(row['TOTAL TAGIH']),
-            sudahBayar: parseExcelNumber(row['SUDAH BAYAR']),
-            sisaTagihan: parseExcelNumber(row['SISA TAGIHAN']),
-            ketBerkas: row['KET BERKAS'] || '',
-            catatanKeuangan: row['CATATAN KEUANGAN'] || '',
-            periodePengiriman: row['PERIODE PENGIRIMAN'] || ''
+            tanggalDaftar: parseExcelDate(getVal('TANGGAL DAFTAR', 'TANGGAL')) || formatDateSafe(new Date().toISOString(), 'dd MMMM yyyy'),
+            jalurInput: normalizeFromOptions(getVal('JALUR INPUT', 'JALUR'), settings.adminOptions?.JALUR_INPUT),
+            kategoriClosing: normalizeKategoriClosing(getVal('KATEGORI CLOSING', 'KATEGORI', 'CLOSING')),
+            koordinator: getVal('KOORDINATOR', 'KOORD'),
+            program: normalizeFromOptions(getVal('PROGRAM'), settings.adminOptions?.PROGRAM),
+            perguruanTinggi: getVal('PERGURUAN TINGGI', 'KAMPUS', 'UNIVERSITAS'),
+            programStudi: getVal('PROGRAM STUDI', 'PRODI', 'JURUSAN'),
+            kloterInput: getVal('KLOTER INPUT', 'KLOTER'),
+            periodePendaftaran: getVal('PERIODE PENDAFTARAN', 'GELOMBANG'),
+            periodeKuliah: getVal('PERIODE KULIAH', 'SEMESTER'),
+            namaLengkap: getVal('NAMA LENGKAP', 'NAMA'),
+            tempatLahir: getVal('TEMPAT LAHIR'),
+            tanggalLahir: parseExcelDate(getVal('TANGGAL LAHIR', 'TGL LAHIR')),
+            jenisKelamin: getVal('JENIS KELAMIN', 'GENDER', 'JK'),
+            agama: normalizeFromOptions(getVal('AGAMA'), settings.adminOptions?.AGAMA),
+            nik: getVal('NIK', 'NO KTP')?.toString(),
+            namaIbu: getVal('NAMA IBU', 'IBU KANDUNG'),
+            kelurahan: getVal('KELURAHAN', 'DESA'),
+            kecamatan: getVal('KECAMATAN'),
+            kabupatenKota: getVal('KABUPATEN/KOTA', 'KABUPATEN', 'KOTA'),
+            provinsi: getVal('PROVINSI'),
+            email: getVal('EMAIL'),
+            noHp: getVal('NO HP', 'WHATSAPP', 'NO WA', 'TELEPON')?.toString(),
+            lulusSmaS1: getVal('LULUS SMA/S1', 'ASAL SEKOLAH', 'ASAL SMA'),
+            lulusKuliah: getVal('LULUS KULIAH', 'ASAL KAMPUS'),
+            linkDoc: getVal('LINK DOC', 'LINK DOKUMEN', 'DOKUMEN'),
+            ketDokumen: normalizeFromOptions(getVal('KET DOKUMEN', 'KETERANGAN DOKUMEN'), settings.adminOptions?.KET_DOKUMEN),
+            statusBerkas: normalizeFromOptions(getVal('STATUS BERKAS', 'BERKAS'), settings.adminOptions?.STATUS_BERKAS),
+            catatanMahasiswa: getVal('CATATAN MAHASISWA', 'CATATAN'),
+            tanggalInput: formatDateSafe(new Date().toISOString(), 'dd MMMM yyyy'),
+            statusData: normalizeFromOptions(getVal('STATUS DATA', 'STATUS'), settings.adminOptions?.STATUS_DATA),
+            linkPddikti: getVal('LINK PDDIKTI', 'PDDIKTI'),
+            linkPisn: getVal('LINK PISN', 'PISN'),
+            nimNpm: getVal('NIM/NPM', 'NIM', 'NPM')?.toString(),
+            nomorIjazah: getVal('NOMOR IJAZAH', 'NO IJAZAH')?.toString(),
+            tanggalMasuk: parseExcelDate(getVal('TANGGAL MASUK', 'TGL MASUK')),
+            tanggalLulus: parseExcelDate(getVal('TANGGAL LULUS', 'TGL LULUS')),
+            pasPhoto: getVal('PAS PHOTO', 'FOTO', 'PHOTO'),
+            judulSkripsi: getVal('JUDUL SKRIPSI', 'SKRIPSI'),
+            banPt: getVal('BAN PT', 'BANPT', 'AKREDITASI'),
+            gelarAkademik: getVal('GELAR AKADEMIK', 'GELAR'),
+            ketRevisi: getVal('KET REVISI', 'REVISI'),
+            totalSetor: parseExcelNumber(getVal('TOTAL SETOR', 'SETOR')),
+            statusTagihan: normalizeFromOptions(getVal('STATUS TAGIHAN', 'TAGIHAN'), settings.adminOptions?.STATUS_TAGIHAN),
+            totalTagih: parseExcelNumber(getVal('TOTAL TAGIH', 'BIAYA')),
+            sudahBayar: parseExcelNumber(getVal('SUDAH BAYAR', 'DIBAYAR', 'PEMBAYARAN')),
+            sisaTagihan: parseExcelNumber(getVal('SISA TAGIHAN', 'SISA', 'TUNGGAKAN')),
+            ketBerkas: normalizeFromOptions(getVal('KET BERKAS', 'KETERANGAN BERKAS'), settings.adminOptions?.KET_BERKAS),
+            catatanKeuangan: getVal('CATATAN KEUANGAN', 'NOTE KEUANGAN'),
+            periodePengiriman: getVal('PERIODE PENGIRIMAN', 'PENGIRIMAN')
           };
           
           addStudentAdministration(newStudent);
@@ -338,6 +397,40 @@ export default function StudentAdministrationPage() {
   };
 
   // Filtering
+  const parseDateSafe = (dateStr: string) => {
+    if (!dateStr) return new Date();
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) return d;
+
+    const months: Record<string, string> = {
+      'januari': '01', 'februari': '02', 'maret': '03', 'april': '04',
+      'mei': '05', 'juni': '06', 'juli': '07', 'agustus': '08',
+      'september': '09', 'oktober': '10', 'november': '11', 'desember': '12',
+      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
+      'jul': '07', 'agu': '08', 'aug': '08', 'sep': '09', 'oct': '10', 'okt': '10',
+      'nov': '11', 'dec': '12', 'des': '12'
+    };
+
+    const parts = dateStr.toLowerCase().split(/[\s-]/);
+    if (parts.length >= 3) {
+      let day = parts[0];
+      let monthStr = parts[1];
+      let year = parts[2];
+      
+      if (parts[0].length === 4) {
+        year = parts[0];
+        monthStr = parts[1];
+        day = parts[2];
+      }
+
+      const month = months[monthStr] || monthStr;
+      const isoStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      const parsed = new Date(isoStr);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    return new Date();
+  };
+
   const filteredStudents = useMemo(() => {
     return studentAdministrations.filter(s => {
       let matchFilters = true;
@@ -358,7 +451,7 @@ export default function StudentAdministrationPage() {
       let matchDate = true;
       if (dateFilterType !== 'all') {
         try {
-          const dateObj = new Date(s.tanggalDaftar);
+          const dateObj = parseDateSafe(s.tanggalDaftar);
           if (!isNaN(dateObj.getTime())) {
             const today = new Date();
             if (dateFilterType === 'today') {
@@ -390,7 +483,7 @@ export default function StudentAdministrationPage() {
       }
 
       return matchFilters && matchSearch && matchDate;
-    }).sort((a, b) => new Date(b.tanggalDaftar).getTime() - new Date(a.tanggalDaftar).getTime());
+    }).sort((a, b) => parseDateSafe(b.tanggalDaftar).getTime() - parseDateSafe(a.tanggalDaftar).getTime());
   }, [studentAdministrations, activeFilters, visibleFilters, searchTerm, dateFilterType, customStartDate, customEndDate]);
 
   // Stats
@@ -420,7 +513,7 @@ export default function StudentAdministrationPage() {
   const formatTanggal = (dateString: string | undefined) => {
     if (!dateString) return '-';
     try {
-      const date = new Date(dateString);
+      const date = parseDateSafe(dateString);
       if (isNaN(date.getTime())) return dateString; // fallback if invalid
       return format(date, 'dd MMMM yyyy', { locale: id });
     } catch (e) {
@@ -455,56 +548,110 @@ export default function StudentAdministrationPage() {
   };
 
   const downloadTemplate = () => {
-    const templateData = [{
-      'TANGGAL DAFTAR': '25 March 2026',
-      'JALUR INPUT': 'Reguler',
-      'KOORDINATOR': 'Budi',
-      'PROGRAM': 'Pintu Kuliah',
-      'PERGURUAN TINGGI': 'STIS Darul Ulum',
-      'PROGRAM STUDI': 'S1 Ekonomi Syariah',
-      'KLOTER INPUT': 'Kloter 1',
-      'PERIODE PENDAFTARAN': 'July 2026',
-      'PERIODE KULIAH': 'Ganjil 2026/2027',
-      'NAMA LENGKAP': 'Ahmad Santoso',
-      'TEMPAT LAHIR': 'Jakarta',
-      'TANGGAL LAHIR': '01 January 2000',
-      'JENIS KELAMIN': 'Laki-laki',
-      'AGAMA': 'Islam',
-      'NIK': '3171234567890001',
-      'NAMA IBU': 'Siti',
-      'KELURAHAN': 'Gambir',
-      'KECAMATAN': 'Gambir',
-      'KABUPATEN/KOTA': 'Jakarta Pusat',
-      'PROVINSI': 'DKI Jakarta',
-      'EMAIL': 'ahmad@example.com',
-      'NO HP': '081234567890',
-      'LULUS SMA/S1': 'SMAN 1 Jakarta',
-      'LULUS KULIAH': '-',
-      'LINK DOC': 'https://drive.google.com/...',
-      'KET DOKUMEN': 'Berkas Lengkap',
-      'STATUS BERKAS': 'Selesai',
-      'CATATAN MAHASISWA': 'Mahasiswa pindahan',
-      'STATUS DATA': 'Aktif PDDikti',
-      'LINK PDDIKTI': 'https://pddikti.kemdikbud.go.id/...',
-      'LINK PISN': '-',
-      'NIM/NPM': '2026001',
-      'NOMOR IJAZAH': '-',
-      'TANGGAL MASUK': '01 August 2026',
-      'TANGGAL LULUS': '-',
-      'PAS PHOTO': 'https://drive.google.com/...',
-      'JUDUL SKRIPSI': '-',
-      'BAN PT': 'Baik Sekali',
-      'GELAR AKADEMIK': '-',
-      'KET REVISI': '-',
-      'TOTAL SETOR': 0,
-      'STATUS TAGIHAN': 'Lunas',
-      'TOTAL TAGIH': 0,
-      'SUDAH BAYAR': 0,
-      'SISA TAGIHAN': 0,
-      'KET BERKAS': 'Selesai',
-      'CATATAN KEUANGAN': '-',
-      'PERIODE PENGIRIMAN': 'Jan 2026'
-    }];
+    const templateData = [
+      {
+        'TANGGAL DAFTAR': '25 March 2026',
+        'JALUR INPUT': 'Reguler',
+        'KATEGORI CLOSING': 'Internal (CS/Admin)',
+        'KOORDINATOR': 'Budi',
+        'PROGRAM': 'Pintu Kuliah',
+        'PERGURUAN TINGGI': 'STIS Darul Ulum',
+        'PROGRAM STUDI': 'S1 Ekonomi Syariah',
+        'KLOTER INPUT': 'Kloter 1',
+        'PERIODE PENDAFTARAN': 'July 2026',
+        'PERIODE KULIAH': 'Ganjil 2026/2027',
+        'NAMA LENGKAP': 'Ahmad Santoso',
+        'TEMPAT LAHIR': 'Jakarta',
+        'TANGGAL LAHIR': '01 January 2000',
+        'JENIS KELAMIN': 'Laki-laki',
+        'AGAMA': 'Islam',
+        'NIK': '3171234567890001',
+        'NAMA IBU': 'Siti',
+        'KELURAHAN': 'Gambir',
+        'KECAMATAN': 'Gambir',
+        'KABUPATEN/KOTA': 'Jakarta Pusat',
+        'PROVINSI': 'DKI Jakarta',
+        'EMAIL': 'ahmad@example.com',
+        'NO HP': '081234567890',
+        'LULUS SMA/S1': 'SMAN 1 Jakarta',
+        'LULUS KULIAH': '-',
+        'LINK DOC': 'https://drive.google.com/...',
+        'KET DOKUMEN': 'Berkas Lengkap',
+        'STATUS BERKAS': 'Selesai',
+        'CATATAN MAHASISWA': 'Mahasiswa pindahan',
+        'STATUS DATA': 'Aktif PDDikti',
+        'LINK PDDIKTI': 'https://pddikti.kemdikbud.go.id/...',
+        'LINK PISN': '-',
+        'NIM/NPM': '2026001',
+        'NOMOR IJAZAH': '-',
+        'TANGGAL MASUK': '01 August 2026',
+        'TANGGAL LULUS': '-',
+        'PAS PHOTO': 'https://drive.google.com/...',
+        'JUDUL SKRIPSI': '-',
+        'BAN PT': 'Baik Sekali',
+        'GELAR AKADEMIK': '-',
+        'KET REVISI': '-',
+        'TOTAL SETOR': 0,
+        'STATUS TAGIHAN': 'Lunas',
+        'TOTAL TAGIH': 0,
+        'SUDAH BAYAR': 0,
+        'SISA TAGIHAN': 0,
+        'KET BERKAS': 'Selesai',
+        'CATATAN KEUANGAN': '-',
+        'PERIODE PENGIRIMAN': 'Jan 2026'
+      },
+      {
+        'TANGGAL DAFTAR': '26 March 2026',
+        'JALUR INPUT': 'Reguler',
+        'KATEGORI CLOSING': 'Eksternal (Koordinator)',
+        'KOORDINATOR': 'Andi',
+        'PROGRAM': 'Pintu Kuliah',
+        'PERGURUAN TINGGI': 'STIS Darul Ulum',
+        'PROGRAM STUDI': 'S1 Ekonomi Syariah',
+        'KLOTER INPUT': 'Kloter 1',
+        'PERIODE PENDAFTARAN': 'July 2026',
+        'PERIODE KULIAH': 'Ganjil 2026/2027',
+        'NAMA LENGKAP': 'Budi Setiawan',
+        'TEMPAT LAHIR': 'Bandung',
+        'TANGGAL LAHIR': '15 February 2001',
+        'JENIS KELAMIN': 'Laki-laki',
+        'AGAMA': 'Islam',
+        'NIK': '3271234567890002',
+        'NAMA IBU': 'Aminah',
+        'KELURAHAN': 'Citarum',
+        'KECAMATAN': 'Bandung Wetan',
+        'KABUPATEN/KOTA': 'Bandung',
+        'PROVINSI': 'Jawa Barat',
+        'EMAIL': 'budi@example.com',
+        'NO HP': '081298765432',
+        'LULUS SMA/S1': 'SMAN 2 Bandung',
+        'LULUS KULIAH': '-',
+        'LINK DOC': 'https://drive.google.com/...',
+        'KET DOKUMEN': 'Berkas Lengkap',
+        'STATUS BERKAS': 'Selesai',
+        'CATATAN MAHASISWA': '-',
+        'STATUS DATA': 'Proses PDDikti',
+        'LINK PDDIKTI': '-',
+        'LINK PISN': '-',
+        'NIM/NPM': '2026002',
+        'NOMOR IJAZAH': '-',
+        'TANGGAL MASUK': '01 August 2026',
+        'TANGGAL LULUS': '-',
+        'PAS PHOTO': 'https://drive.google.com/...',
+        'JUDUL SKRIPSI': '-',
+        'BAN PT': 'Baik Sekali',
+        'GELAR AKADEMIK': '-',
+        'KET REVISI': '-',
+        'TOTAL SETOR': 0,
+        'STATUS TAGIHAN': 'Lunas',
+        'TOTAL TAGIH': 0,
+        'SUDAH BAYAR': 0,
+        'SISA TAGIHAN': 0,
+        'KET BERKAS': 'Selesai',
+        'CATATAN KEUANGAN': '-',
+        'PERIODE PENGIRIMAN': 'Jan 2026'
+      }
+    ];
 
     const worksheet = XLSX.utils.json_to_sheet(templateData);
     const workbook = XLSX.utils.book_new();
@@ -737,9 +884,9 @@ export default function StudentAdministrationPage() {
 
       {/* Data Table */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+        <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+          <table className="w-full text-left text-sm relative">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">NO</th>
                 {exportColumns.map(colId => {
@@ -750,12 +897,12 @@ export default function StudentAdministrationPage() {
                     </th>
                   );
                 })}
-                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 text-right whitespace-nowrap sticky right-0 bg-slate-50 dark:bg-slate-800/50">AKSI</th>
+                <th className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-300 text-right whitespace-nowrap sticky right-0 bg-slate-50 dark:bg-slate-800/50 z-20">AKSI</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
               {filteredStudents.map((student, index) => (
-                <tr key={student.id} className="hover:bg-slate-50 dark:bg-slate-800/50 transition-colors group">
+                <tr key={student.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group bg-white dark:bg-slate-900">
                   <td className="px-6 py-4 whitespace-nowrap text-slate-800 dark:text-slate-100">{index + 1}</td>
                   {exportColumns.map(colId => {
                     let value = student[colId as keyof StudentAdministration];
@@ -857,6 +1004,13 @@ export default function StudentAdministrationPage() {
                       <select name="jalurInput" value={formData.jalurInput} onChange={handleChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
                         <option value="">Pilih Jalur</option>
                         {settings.adminOptions?.JALUR_INPUT?.map((o, i) => <option key={`${o}-${i}`} value={o}>{o}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Kategori Closing</label>
+                      <select name="kategoriClosing" value={formData.kategoriClosing || 'Internal'} onChange={handleChange} className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 bg-slate-50 dark:bg-slate-800/50 focus:bg-white dark:bg-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+                        <option value="Internal">Internal (CS/Admin)</option>
+                        <option value="Eksternal">Eksternal (Koordinator)</option>
                       </select>
                     </div>
                     <div>

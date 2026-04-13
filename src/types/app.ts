@@ -65,6 +65,7 @@ export interface StudentAdministration {
   // Data Pendaftaran
   tanggalDaftar: string;
   jalurInput: string;
+  kategoriClosing: string;
   koordinator: string;
   program: string;
   perguruanTinggi: string;

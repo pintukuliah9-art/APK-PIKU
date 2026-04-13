@@ -184,7 +184,7 @@ export default function HRDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
+        <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
               <Users size={24} />
@@ -195,7 +195,7 @@ export default function HRDashboard() {
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
+        <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-green-100 text-green-600 rounded-lg">
               <UserCheck size={24} />
@@ -206,7 +206,7 @@ export default function HRDashboard() {
             </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700">
+        <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-orange-100 text-orange-600 rounded-lg">
               <Clock size={24} />
@@ -219,8 +219,8 @@ export default function HRDashboard() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
-        <div className="border-b border-gray-200 dark:border-slate-700">
+      <div className="bg-white dark:bg-[#1A1C23] rounded-xl shadow-sm border border-slate-100 dark:border-[#2A2D35] overflow-hidden">
+        <div className="border-b border-slate-100 dark:border-[#2A2D35]">
           <nav className="flex -mb-px overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveTab('karyawan')}
@@ -1037,7 +1037,7 @@ function PengaturanHRTab() {
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Jabatan */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+        <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Daftar Jabatan</h3>
           <div className="flex gap-2 mb-4">
             <input
@@ -1074,7 +1074,7 @@ function PengaturanHRTab() {
         </div>
 
         {/* Departemen */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+        <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Daftar Departemen</h3>
           <div className="flex gap-2 mb-4">
             <input
@@ -1111,7 +1111,7 @@ function PengaturanHRTab() {
         </div>
 
         {/* Status Karyawan */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+        <div className="bg-white dark:bg-[#1A1C23] p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-[#2A2D35]">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Status Karyawan</h3>
           <div className="flex gap-2 mb-4">
             <input
